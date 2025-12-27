@@ -16,3 +16,8 @@ Observations:
 - Tests: `MetadataApiTest` + updated `DashboardSmokeTest`.
 Observations:
 - Implemented a minimal local filesystem “vector store” under `.codeassistant/vectorstore/` for non-test profiles; tests use in-memory vector store.
+
+- BL-0201 complete: Indexing page (`/index`) + initial index job; REST `POST /api/index/initial` + `GET /api/index/status`; metadata `lastIndexedCommit` updated from `git rev-parse HEAD`.
+- Tests: `IndexingFlowTest` creates a temp git repo, starts job, asserts progress changes while RUNNING, and dashboard displays the commit hash.
+Observations:
+- Index job runner is in-memory/single-job (OK for MVP); uses Spring `applicationTaskExecutor`.

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Indexing</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 2rem;
+      }
+      .card {
+        max-width: 720px;
+        padding: 1.5rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .status {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: #fafafa;
+      }
+      .actions {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 6px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #6b7280;
+      }
+      button.danger {
+        background: #b91c1c;
+      }
+      a {
+        color: #1f6feb;
+        text-decoration: none;
+      }
+      .notice {
+        background: #e7f3ff;
+        border: 1px solid #b6d8ff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+      .muted {
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Indexing</h1>
+
+      <div class="notice" th:if="${!configured}">
+        <div>Project is not configured yet.</div>
+        <div class="muted">Configure the project before running indexing.</div>
+      </div>
+
+      <div class="status">
+        <div>
+          Job status:
+          <strong id="jobStatus" th:text="${job.status}">IDLE</strong>
+        </div>
+        <div style="margin-top: 0.5rem">
+          Progress:
+          <strong id="jobProgress" th:text="${job.progress}">Idle</strong>
+        </div>
+        <div id="jobErrorRow" style="margin-top: 0.5rem; display: none">
+          Error:
+          <strong id="jobError"></strong>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="runBtn" th:disabled="${!configured}">Run initial index</button>
+        <a th:href="@{/}">Back to Dashboard</a>
+      </div>
+
+      <div id="confirmBox" class="status" style="display: none">
+        <div>
+          Confirm: run the initial index using the repository <strong>HEAD</strong> commit?
+        </div>
+        <div class="actions">
+          <button id="confirmBtn" class="danger">Confirm and start</button>
+          <button id="cancelBtn" class="secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const runBtn = document.getElementById("runBtn");
+      const confirmBox = document.getElementById("confirmBox");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const cancelBtn = document.getElementById("cancelBtn");
+
+      const jobStatus = document.getElementById("jobStatus");
+      const jobProgress = document.getElementById("jobProgress");
+      const jobErrorRow = document.getElementById("jobErrorRow");
+      const jobError = document.getElementById("jobError");
+
+      let pollTimer = null;
+
+      function setJobState(state) {
+        jobStatus.textContent = state.status || "IDLE";
+        jobProgress.textContent = state.progress || "";
+
+        if (state.status === "FAILED" && state.error) {
+          jobErrorRow.style.display = "block";
+          jobError.textContent = state.error;
+        } else {
+          jobErrorRow.style.display = "none";
+          jobError.textContent = "";
+        }
+      }
+
+      async function poll() {
+        const res = await fetch("/api/index/status");
+        const state = await res.json();
+        setJobState(state);
+
+        if (state.status === "RUNNING") return;
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      runBtn &&
+        runBtn.addEventListener("click", () => {
+          confirmBox.style.display = "block";
+        });
+
+      cancelBtn.addEventListener("click", () => {
+        confirmBox.style.display = "none";
+      });
+
+      confirmBtn.addEventListener("click", async () => {
+        confirmBox.style.display = "none";
+        const res = await fetch("/api/index/initial", { method: "POST" });
+        const state = await res.json();
+        setJobState(state);
+
+        if (!pollTimer) {
+          pollTimer = setInterval(poll, 500);
+        }
+        await poll();
+      });
+
+      if (jobStatus.textContent === "RUNNING" && !pollTimer) {
+        pollTimer = setInterval(poll, 500);
+      }
+    </script>
+  </body>
+</html>
+

@@ -59,5 +59,17 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
       throw new IllegalStateException("Failed to read " + METADATA_FILE_ID, e);
     }
   }
-}
 
+  @Override
+  public ProjectMetadataState saveMetadata(ProjectMetadata metadata) {
+    try {
+      vectorStorePort.createFile(
+          METADATA_FILE_ID,
+          objectMapper.writeValueAsBytes(metadata),
+          METADATA_ATTRIBUTES);
+      return new ProjectMetadataState(METADATA_FILE_ID, metadata, METADATA_ATTRIBUTES);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to write " + METADATA_FILE_ID, e);
+    }
+  }
+}

@@ -6,5 +6,6 @@ public interface ProjectStatePort {
   ProjectMetadataState getOrCreateMetadata();
 
   Optional<ProjectMetadataState> readMetadata();
-}
 
+  ProjectMetadataState saveMetadata(ProjectMetadata metadata);
+}
