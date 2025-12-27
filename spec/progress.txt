@@ -5,3 +5,8 @@ Observations / short memory:
 - Chose Maven + Java 17 bytecode (runs on local JDK 21 OK).
 - Package root: `app.platform` (per HLD).
 - Mockito emits JDK dynamic-agent warning during tests; not addressed yet.
+
+- BL-0101 complete: Project Setup UI (`GET/POST /setup`) with validation; config persisted to `./.codeassistant/config.json`; Dashboard shows “Configured”.
+- Tests: `ProjectSetupFlowTest` (local setup, GitHub setup, invalid GitHub id) under `test` profile using in-memory config adapter.
+Observations:
+- Runtime config folder `.codeassistant/` is gitignored; file-backed adapter disabled in `test` profile.

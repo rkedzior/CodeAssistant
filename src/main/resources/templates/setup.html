@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project Setup</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 2rem;
+      }
+      .card {
+        max-width: 720px;
+        padding: 1.5rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .row {
+        margin: 0.75rem 0;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      .help {
+        color: #666;
+        font-size: 0.9rem;
+      }
+      .error {
+        color: #b00020;
+        margin-top: 0.25rem;
+      }
+      .actions {
+        margin-top: 1.25rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 6px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      a {
+        color: #1f6feb;
+        text-decoration: none;
+      }
+      .notice {
+        background: #e7f3ff;
+        border: 1px solid #b6d8ff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Project Setup</h1>
+
+      <div class="notice">
+        <div>Choose how to identify your project and provide your OpenAI API key.</div>
+        <div class="help">Nothing is stored in a database; the configuration is kept locally.</div>
+      </div>
+
+      <form th:action="@{/setup}" th:object="${form}" method="post">
+        <div class="row">
+          <label>Project source</label>
+          <label>
+            <input type="radio" th:field="*{mode}" value="LOCAL" onchange="toggleMode()" />
+            Local repository
+          </label>
+          <label>
+            <input type="radio" th:field="*{mode}" value="GITHUB" onchange="toggleMode()" />
+            GitHub repository
+          </label>
+          <div class="error" th:if="${#fields.hasErrors('mode')}" th:errors="*{mode}"></div>
+        </div>
+
+        <div class="row" id="localFields">
+          <label for="localRepoPath">Local git repository path</label>
+          <input id="localRepoPath" type="text" th:field="*{localRepoPath}" />
+          <div class="help">Must exist and contain a <code>.git</code> directory.</div>
+          <div
+            class="error"
+            th:if="${#fields.hasErrors('localRepoPath')}"
+            th:errors="*{localRepoPath}"
+          ></div>
+        </div>
+
+        <div class="row" id="githubFields">
+          <label for="githubRepo">GitHub repository</label>
+          <input id="githubRepo" type="text" th:field="*{githubRepo}" placeholder="owner/name" />
+          <div class="error" th:if="${#fields.hasErrors('githubRepo')}" th:errors="*{githubRepo}"></div>
+
+          <div style="height: 0.75rem"></div>
+
+          <label for="githubToken">GitHub token</label>
+          <input id="githubToken" type="password" th:field="*{githubToken}" />
+          <div class="help">Required for GitHub mode.</div>
+          <div
+            class="error"
+            th:if="${#fields.hasErrors('githubToken')}"
+            th:errors="*{githubToken}"
+          ></div>
+        </div>
+
+        <div class="row">
+          <label for="openaiApiKey">OpenAI API key</label>
+          <input id="openaiApiKey" type="password" th:field="*{openaiApiKey}" />
+          <div class="error" th:if="${#fields.hasErrors('openaiApiKey')}" th:errors="*{openaiApiKey}"></div>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Save configuration</button>
+          <a th:href="@{/}">Back to Dashboard</a>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      function toggleMode() {
+        var isLocal =
+          document.querySelector('input[name="mode"]:checked') &&
+          document.querySelector('input[name="mode"]:checked').value === "LOCAL";
+        document.getElementById("localFields").style.display = isLocal ? "block" : "none";
+        document.getElementById("githubFields").style.display = isLocal ? "none" : "block";
+      }
+      toggleMode();
+    </script>
+  </body>
+</html>
+
