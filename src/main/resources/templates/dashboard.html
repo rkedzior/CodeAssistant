@@ -47,10 +47,13 @@
           <strong th:text="${configured} ? 'Configured' : 'Not configured'">Not configured</strong>
         </div>
         <div style="margin-top: 0.5rem">
+          Last indexed commit:
+          <strong th:text="${lastIndexedCommitDisplay}">Not indexed</strong>
+        </div>
+        <div style="margin-top: 0.5rem">
           <a th:href="@{/setup}">Project Setup</a>
         </div>
       </div>
     </div>
   </body>
 </html>
-

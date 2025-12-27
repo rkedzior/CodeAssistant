@@ -10,3 +10,9 @@ Observations / short memory:
 - Tests: `ProjectSetupFlowTest` (local setup, GitHub setup, invalid GitHub id) under `test` profile using in-memory config adapter.
 Observations:
 - Runtime config folder `.codeassistant/` is gitignored; file-backed adapter disabled in `test` profile.
+
+- BL-0102 complete: vector-store state bootstrap via `metadata.json` with attributes `type=documentation`, `subtype=metadata`; `GET /api/metadata` added.
+- UI: Dashboard shows “Last indexed commit: Not indexed” when empty.
+- Tests: `MetadataApiTest` + updated `DashboardSmokeTest`.
+Observations:
+- Implemented a minimal local filesystem “vector store” under `.codeassistant/vectorstore/` for non-test profiles; tests use in-memory vector store.
