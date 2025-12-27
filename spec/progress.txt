@@ -21,3 +21,6 @@ Observations:
 - Tests: `IndexingFlowTest` creates a temp git repo, starts job, asserts progress changes while RUNNING, and dashboard displays the commit hash.
 Observations:
 - Index job runner is in-memory/single-job (OK for MVP); uses Spring `applicationTaskExecutor`.
+
+- BL-0202 complete: tracked-file enumeration via `git ls-files`; API `GET /api/index/tracked-files` added.
+- Tests: `TrackedFilesApiTest` verifies ignored/untracked file is excluded.

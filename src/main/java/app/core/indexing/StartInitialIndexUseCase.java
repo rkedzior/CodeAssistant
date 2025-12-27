@@ -6,6 +6,7 @@ import app.core.projectstate.ProjectMetadataState;
 import app.core.projectstate.ProjectStatePort;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.core.task.TaskExecutor;
@@ -48,6 +49,14 @@ public class StartInitialIndexUseCase {
             sleep(PROGRESS_STEP_DELAY);
 
             String headCommit = gitPort.getHeadCommit();
+
+            updateProgress("Enumerating tracked files…");
+            sleep(PROGRESS_STEP_DELAY);
+
+            List<String> trackedFiles = gitPort.listTrackedFiles();
+
+            updateProgress("Found " + trackedFiles.size() + " tracked files…");
+            sleep(PROGRESS_STEP_DELAY);
 
             updateProgress("Updating metadata…");
             sleep(PROGRESS_STEP_DELAY);

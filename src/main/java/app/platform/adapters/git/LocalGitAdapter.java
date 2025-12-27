@@ -30,6 +30,13 @@ public class LocalGitAdapter implements GitPort {
     return runGit(repoPath, DEFAULT_TIMEOUT, "rev-parse", "HEAD").trim();
   }
 
+  @Override
+  public List<String> listTrackedFiles() {
+    Path repoPath = resolveLocalRepoPath();
+    String stdout = runGit(repoPath, DEFAULT_TIMEOUT, "ls-files", "-z");
+    return parseNullSeparatedList(stdout);
+  }
+
   private Path resolveLocalRepoPath() {
     ProjectConfig config =
         projectConfigPort
@@ -45,6 +52,21 @@ public class LocalGitAdapter implements GitPort {
       throw new IllegalStateException("Local repo path does not exist: " + repoPath);
     }
     return repoPath;
+  }
+
+  private static List<String> parseNullSeparatedList(String stdout) {
+    if (stdout == null || stdout.isEmpty()) {
+      return List.of();
+    }
+
+    String[] entries = stdout.split("\u0000", -1);
+    List<String> results = new ArrayList<>(entries.length);
+    for (String entry : entries) {
+      if (entry != null && !entry.isBlank()) {
+        results.add(entry);
+      }
+    }
+    return results;
   }
 
   private static String runGit(Path repoPath, Duration timeout, String... args) {
@@ -96,4 +118,3 @@ public class LocalGitAdapter implements GitPort {
     }
   }
 }
-
