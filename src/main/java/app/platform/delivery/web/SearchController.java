@@ -6,6 +6,7 @@ import app.core.search.SemanticSearchPort;
 import app.core.search.SemanticSearchResponse;
 import app.core.search.TextSearchPort;
 import app.core.search.TextSearchResponse;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Controller;
@@ -33,28 +34,38 @@ public class SearchController {
       @RequestParam(name = "query", required = false) String query,
       @RequestParam(name = "regex", required = false, defaultValue = "false") boolean regex,
       @RequestParam(name = "mode", required = false, defaultValue = "text") String mode,
-      @RequestParam(name = "k", required = false, defaultValue = "10") int k,
+      @RequestParam(name = "k", required = false, defaultValue = "10") int k,   
+      @RequestParam(name = "type", required = false) String type,
+      @RequestParam(name = "subtype", required = false) String subtype,
       Model model) {
     boolean configured = projectConfigPort.load().isPresent();
     String normalizedMode = "semantic".equalsIgnoreCase(mode) ? "semantic" : "text";
+    String normalizedType = type == null ? "" : type.trim();
+    String normalizedSubtype = subtype == null ? "" : subtype.trim();
 
     model.addAttribute("configured", configured);
     model.addAttribute("query", query == null ? "" : query);
     model.addAttribute("regex", regex);
     model.addAttribute("mode", normalizedMode);
     model.addAttribute("k", k);
+    model.addAttribute("type", normalizedType);
+    model.addAttribute("subtype", normalizedSubtype);
     model.addAttribute("error", null);
     model.addAttribute("textResults", List.of());
     model.addAttribute("semanticResults", List.of());
 
     if (configured && query != null && !query.isBlank()) {
       if ("semantic".equals(normalizedMode)) {
-        SemanticSearchResponse response = semanticSearchPort.search(query, k, Map.of());
+        Map<String, String> filters = new HashMap<>();
+        if (!normalizedType.isBlank()) filters.put("type", normalizedType);
+        if (!normalizedSubtype.isBlank()) filters.put("subtype", normalizedSubtype);
+
+        SemanticSearchResponse response = semanticSearchPort.search(query, k, filters);
         model.addAttribute("semanticResults", response.results());
         model.addAttribute("error", response.error());
       } else {
         try {
-          TextSearchResponse response = textSearchPort.search(query, regex);
+          TextSearchResponse response = textSearchPort.search(query, regex);    
           model.addAttribute("textResults", response.files());
         } catch (InvalidRegexException e) {
           model.addAttribute("error", e.getMessage());

@@ -1,6 +1,7 @@
 package app.platform.delivery.web;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -78,6 +79,52 @@ class SemanticSearchApiTest {
         .andExpect(content().string(containsString("src/main/java/app/core/SemanticAlpha.java")));
   }
 
+  @Test
+  void semanticSearch_filtersByTypeAndSubtype() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir);
+    initTempGitRepoWithSpecAndNoiseFiles(repoDir);
+
+    configureLocalRepo(repoDir);
+    startIndexingAndWaitUntilFinished();
+
+    String query = "non functional requirements";
+    mockMvc
+        .perform(
+            get("/api/search/semantic")
+                .param("query", query)
+                .param("type", "documentation")
+                .param("subtype", "spec")
+                .param("k", "10"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.results.length()").value(1))
+        .andExpect(jsonPath("$.results[0].path").value("spec/US_9998_NFR.md"));
+  }
+
+  @Test
+  void semanticSearchHtml_filtersByTypeAndSubtype() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir);
+    initTempGitRepoWithSpecAndNoiseFiles(repoDir);
+
+    configureLocalRepo(repoDir);
+    startIndexingAndWaitUntilFinished();
+
+    String query = "non functional requirements";
+    mockMvc
+        .perform(
+            get("/search")
+                .param("mode", "semantic")
+                .param("type", "documentation")
+                .param("subtype", "spec")
+                .param("query", query)
+                .param("k", "10"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("spec/US_9998_NFR.md")))
+        .andExpect(content().string(not(containsString("Noise.java"))));
+  }
+
   private void configureLocalRepo(Path repoDir) throws Exception {
     mockMvc
         .perform(
@@ -117,10 +164,14 @@ class SemanticSearchApiTest {
     throw new AssertionError("Timed out while waiting for indexing job to finish");
   }
 
-  private static void initTempGitRepoWithTwoSemanticFiles(Path repoDir) throws Exception {
+  private static void initTempGitRepo(Path repoDir) throws Exception {
     runGit(repoDir, "init");
     runGit(repoDir, "config", "user.email", "test@example.com");
     runGit(repoDir, "config", "user.name", "Test User");
+  }
+
+  private static void initTempGitRepoWithTwoSemanticFiles(Path repoDir) throws Exception {
+    initTempGitRepo(repoDir);
 
     Files.createDirectories(repoDir.resolve("src/main/java/app/core"));
     Files.writeString(
@@ -148,6 +199,32 @@ class SemanticSearchApiTest {
             "  // token",
             "  // banana carrot dolphin elephant fig grape hotel igloo jacket kettle lemon mango",
             "  // nebula oxygen proton quantum rocket satellite telescope",
+            "}"),
+        StandardCharsets.UTF_8);
+
+    runGit(repoDir, "add", ".");
+    runGit(repoDir, "commit", "-m", "initial");
+  }
+
+  private static void initTempGitRepoWithSpecAndNoiseFiles(Path repoDir) throws Exception {
+    initTempGitRepo(repoDir);
+
+    Files.createDirectories(repoDir.resolve("spec"));
+    Files.writeString(
+        repoDir.resolve("spec/US_9998_NFR.md"),
+        String.join("\n", "# US_9998", "", "Non-functional requirements: latency"),
+        StandardCharsets.UTF_8);
+
+    Files.createDirectories(repoDir.resolve("src/main/java/app/core"));
+    Files.writeString(
+        repoDir.resolve("src/main/java/app/core/Noise.java"),
+        String.join(
+            "\n",
+            "package app.core;",
+            "",
+            "public class Noise {",
+            "  // unrelated content",
+            "  // banana carrot dolphin elephant fig grape hotel igloo jacket kettle lemon mango",
             "}"),
         StandardCharsets.UTF_8);
 
@@ -197,4 +274,3 @@ class SemanticSearchApiTest {
     }
   }
 }
-

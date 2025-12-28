@@ -52,9 +52,11 @@ public class LocalSemanticSearchAdapter implements SemanticSearchPort {
     }
 
     List<ScoredDoc> scored = new ArrayList<>();
-    for (VectorStoreFileSummary summary : vectorStorePort.listFiles()) {
-      String path = summary.attributes().get("path");
+    for (VectorStoreFileSummary summary : vectorStorePort.listFiles()) {        
+      Map<String, String> attributes = summary.attributes();
+      String path = attributes.get("path");
       if (path == null || path.isBlank()) continue;
+      if (!matchesFilters(attributes, filters)) continue;
 
       VectorStoreFile file;
       try {
@@ -88,6 +90,24 @@ public class LocalSemanticSearchAdapter implements SemanticSearchPort {
             .toList();
 
     return new SemanticSearchResponse(query, results, null);
+  }
+
+  private static boolean matchesFilters(Map<String, String> attributes, Map<String, String> filters) {
+    if (filters == null || filters.isEmpty()) return true;
+    if (attributes == null || attributes.isEmpty()) return false;
+
+    for (Map.Entry<String, String> filter : filters.entrySet()) {
+      String key = filter.getKey();
+      String requiredValue = filter.getValue();
+      if (key == null || key.isBlank()) continue;
+      if (requiredValue == null || requiredValue.isBlank()) continue;
+
+      String actualValue = attributes.get(key);
+      if (actualValue == null) return false;
+      if (!actualValue.trim().equalsIgnoreCase(requiredValue.trim())) return false;
+    }
+
+    return true;
   }
 
   private static int normalizeK(int k) {
@@ -210,4 +230,3 @@ public class LocalSemanticSearchAdapter implements SemanticSearchPort {
 
   private record ScoredDoc(String path, double score, String preview) {}
 }
-

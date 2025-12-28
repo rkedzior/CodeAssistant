@@ -5,6 +5,7 @@ import app.core.search.SemanticSearchPort;
 import app.core.search.SemanticSearchResponse;
 import app.core.search.TextSearchPort;
 import app.core.search.TextSearchResponse;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.MediaType;
@@ -37,8 +38,14 @@ public class SearchApiController {
   @GetMapping(path = "/api/search/semantic", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<SemanticSearchResponse> searchSemantic(
       @RequestParam(name = "query", required = false) String query,
-      @RequestParam(name = "k", required = false, defaultValue = "10") int k) {
-    SemanticSearchResponse response = semanticSearchPort.search(query, k, Map.of());
+      @RequestParam(name = "k", required = false, defaultValue = "10") int k,
+      @RequestParam(name = "type", required = false) String type,
+      @RequestParam(name = "subtype", required = false) String subtype) {
+    Map<String, String> filters = new HashMap<>();
+    if (type != null && !type.isBlank()) filters.put("type", type.trim());
+    if (subtype != null && !subtype.isBlank()) filters.put("subtype", subtype.trim());
+
+    SemanticSearchResponse response = semanticSearchPort.search(query, k, filters);
     if (response.error() != null) {
       return ResponseEntity.badRequest().body(response);
     }

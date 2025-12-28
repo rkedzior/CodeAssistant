@@ -151,8 +151,23 @@
           <input id="k" type="number" name="k" min="1" max="50" step="1" th:value="${k}" />
           <div class="muted">Return the top results ranked by relevance.</div>
         </div>
+        <div class="row" th:if="${mode == 'semantic'}">
+          <label for="type">Type</label>
+          <select id="type" name="type">
+            <option value="" th:selected="${type == null or type == ''}">(any)</option>
+            <option value="code" th:selected="${type == 'code'}">Code</option>
+            <option value="documentation" th:selected="${type == 'documentation'}">Documentation</option>
+            <option value="observation" th:selected="${type == 'observation'}">Observation</option>
+          </select>
+          <div class="muted">Filter results to a document type.</div>
+        </div>
+        <div class="row" th:if="${mode == 'semantic'}">
+          <label for="subtype">Subtype</label>
+          <input id="subtype" type="text" name="subtype" th:value="${subtype}" placeholder="e.g. spec" />
+          <div class="muted">Filter results to a subtype (e.g. spec, readme, ui).</div>
+        </div>
         <div class="actions">
-          <button type="submit" th:disabled="${!configured}">Search</button>
+          <button type="submit" th:disabled="${!configured}">Search</button>    
           <a th:href="@{/}">Back to Dashboard</a>
         </div>
       </form>
