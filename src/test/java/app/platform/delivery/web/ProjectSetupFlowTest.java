@@ -29,6 +29,59 @@ class ProjectSetupFlowTest {
   @TempDir Path tempDir;
 
   @Test
+  void localSetup_withModelAndVectorStore_persistsAndShowsOnDashboardAndSetup() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir.resolve(".git"));
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test")
+                .param("openaiModel", "gpt-test-model")
+                .param("openaiVectorStoreId", "vs_test12345"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/"));
+
+    mockMvc
+        .perform(get("/"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("gpt-test-model")))
+        .andExpect(content().string(containsString("vs_test12345")));
+
+    mockMvc
+        .perform(get("/setup"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("gpt-test-model")))
+        .andExpect(content().string(containsString("vs_test12345")));
+  }
+
+  @Test
+  void localSetup_invalidVectorStoreId_showsValidationError_andDoesNotConfigure() throws Exception {
+    Path repoDir = tempDir.resolve("repo-invalid-vs");
+    Files.createDirectories(repoDir.resolve(".git"));
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test")
+                .param("openaiVectorStoreId", "not-a-vs-id"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("Vector store id must match vs_...")));
+
+    mockMvc
+        .perform(get("/"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Not configured")));
+  }
+
+  @Test
   void localSetup_happyPath_marksConfiguredOnDashboard() throws Exception {
     Path repoDir = tempDir.resolve("repo");
     Files.createDirectories(repoDir.resolve(".git"));
@@ -52,6 +105,32 @@ class ProjectSetupFlowTest {
         .perform(get("/index"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+  }
+
+  @Test
+  void localSetup_withoutModelOrVectorStore_defaultsOnDashboard() throws Exception {
+    Path repoDir = tempDir.resolve("repo-defaults");
+    Files.createDirectories(repoDir.resolve(".git"));
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test")
+                .param("openaiVectorStoreId", " "))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/"));
+
+    mockMvc
+        .perform(get("/"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("Configured")))
+        .andExpect(content().string(containsString("OpenAI model:")))
+        .andExpect(content().string(containsString("gpt-4.1-mini")))
+        .andExpect(content().string(containsString("Vector store:")))
+        .andExpect(content().string(containsString("Not configured")));
   }
 
   @Test

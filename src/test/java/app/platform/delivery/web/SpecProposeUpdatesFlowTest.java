@@ -49,7 +49,8 @@ class SpecProposeUpdatesFlowTest {
     Files.writeString(repoDir.resolve(SPEC_A_PATH), "spec-a: known content", StandardCharsets.UTF_8);
     Files.writeString(repoDir.resolve(SPEC_B_PATH), "spec-b: known content", StandardCharsets.UTF_8);
 
-    projectConfigPort.save(new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null));
+    projectConfigPort.save(
+        new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null, null, null));
   }
 
   @Test

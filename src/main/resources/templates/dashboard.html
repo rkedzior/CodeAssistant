@@ -50,6 +50,14 @@
           Last indexed commit:
           <strong th:text="${lastIndexedCommitDisplay}">Not indexed</strong>
         </div>
+        <div style="margin-top: 0.5rem" th:if="${isConfigured}">
+          OpenAI model:
+          <strong th:text="${openaiModelDisplay}">gpt-4.1-mini</strong>
+        </div>
+        <div style="margin-top: 0.5rem" th:if="${isConfigured}">
+          Vector store:
+          <strong th:text="${openaiVectorStoreIdDisplay}">Not configured</strong>
+        </div>
         <div style="margin-top: 0.5rem">
           <a th:href="@{/setup}">Project Setup</a>
         </div>

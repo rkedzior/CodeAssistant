@@ -9,5 +9,6 @@ public record ProjectConfig(
     String openaiApiKey,
     String localRepoPath,
     String githubRepo,
-    String githubToken) {}
-
+    String githubToken,
+    String openaiModel,
+    String openaiVectorStoreId) {}

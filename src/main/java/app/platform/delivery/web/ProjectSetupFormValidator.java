@@ -10,6 +10,7 @@ import org.springframework.validation.Validator;
 @Component
 public class ProjectSetupFormValidator implements Validator {
   private static final String GITHUB_REPO_PATTERN = "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$";
+  private static final String OPENAI_VECTOR_STORE_ID_PATTERN = "^vs_[A-Za-z0-9]+$";
 
   @Override
   public boolean supports(Class<?> clazz) {
@@ -55,10 +56,19 @@ public class ProjectSetupFormValidator implements Validator {
         errors.rejectValue("githubToken", "githubToken.required", "GitHub token is required.");
       }
     }
+
+    if (!isBlank(form.getOpenaiVectorStoreId())) {
+      String trimmed = form.getOpenaiVectorStoreId().trim();
+      if (!trimmed.matches(OPENAI_VECTOR_STORE_ID_PATTERN)) {
+        errors.rejectValue(
+            "openaiVectorStoreId",
+            "openaiVectorStoreId.invalid",
+            "Vector store id must match vs_... (letters/numbers).");
+      }
+    }
   }
 
   private static boolean isBlank(String value) {
     return value == null || value.trim().isEmpty();
   }
 }
-

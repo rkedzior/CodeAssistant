@@ -104,3 +104,10 @@ Observations:
 - BUG-01 fixed: Thymeleaf could render `index` without `configured` in the model, causing `th:if="${!configured}"` to throw.
 - Fix: added global `configured` model attribute and made templates use a safe `isConfigured` derived from `#ctx.containsVariable('configured')`.
 - Tests: added `IndexTemplateResilienceTest` + extended `ProjectSetupFlowTest`; `.\mvnw.cmd test` passes.
+
+2025-12-29
+- BL-1201 complete: `/setup` supports optional `openaiModel` and `openaiVectorStoreId`; Dashboard shows configured model + vector store (defaults to `gpt-4.1-mini` and “Not configured”).
+- Tests: extended `ProjectSetupFlowTest` covers persistence, validation (`vs_...` format), and default display; `.\mvnw.cmd test` passes.
+Observations / short memory:
+- `ProjectConfig` now includes `openaiModel` and `openaiVectorStoreId` and remains backward compatible with existing `config.json` (missing fields).
+- `openaiVectorStoreId` validation is intentionally light: `^vs_[A-Za-z0-9]+$`.

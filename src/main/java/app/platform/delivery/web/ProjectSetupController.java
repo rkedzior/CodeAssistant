@@ -60,6 +60,8 @@ public class ProjectSetupController {
             config -> {
               form.setMode(config.mode());
               form.setOpenaiApiKey(config.openaiApiKey());
+              form.setOpenaiModel(config.openaiModel());
+              form.setOpenaiVectorStoreId(config.openaiVectorStoreId());
               form.setLocalRepoPath(config.localRepoPath());
               form.setGithubRepo(config.githubRepo());
               form.setGithubToken(config.githubToken());
@@ -68,12 +70,34 @@ public class ProjectSetupController {
   }
 
   private static ProjectConfig toConfig(ProjectSetupForm form) {
+    String openaiModel = normalizeOptional(form.getOpenaiModel());
+    String openaiVectorStoreId = normalizeOptional(form.getOpenaiVectorStoreId());
     if (form.getMode() == ProjectConfigMode.LOCAL) {
-      return new ProjectConfig(ProjectConfigMode.LOCAL, form.getOpenaiApiKey(), form.getLocalRepoPath(), null, null);
+      return new ProjectConfig(
+          ProjectConfigMode.LOCAL,
+          form.getOpenaiApiKey(),
+          form.getLocalRepoPath(),
+          null,
+          null,
+          openaiModel,
+          openaiVectorStoreId);
     }
 
     return new ProjectConfig(
-        ProjectConfigMode.GITHUB, form.getOpenaiApiKey(), null, form.getGithubRepo(), form.getGithubToken());
+        ProjectConfigMode.GITHUB,
+        form.getOpenaiApiKey(),
+        null,
+        form.getGithubRepo(),
+        form.getGithubToken(),
+        openaiModel,
+        openaiVectorStoreId);
+  }
+
+  private static String normalizeOptional(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 }
-

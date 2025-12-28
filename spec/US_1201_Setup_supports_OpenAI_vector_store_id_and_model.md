@@ -16,6 +16,28 @@ Allow configuring (and later validating) the OpenAI integration parameters neede
   - “Vector store: Not configured” or the configured id
   - “Model: …”
 
+## Implementation plan (detailed)
+1. Core config model
+   - Extend `app.core.projectconfig.ProjectConfig` with optional fields:
+     - `openaiModel`
+     - `openaiVectorStoreId`
+   - Keep Jackson backward compatibility: old `config.json` missing these fields must still load.
+2. Setup delivery
+   - Extend `ProjectSetupForm` with `openaiModel` + `openaiVectorStoreId`.
+   - Update `ProjectSetupController` to load/save the new fields for both LOCAL and GITHUB modes.
+   - Extend `setup.html` with two new inputs (model + vector store id) and preserve existing UX.
+   - Extend `ProjectSetupFormValidator`:
+     - If `openaiVectorStoreId` is provided, validate `^vs_[A-Za-z0-9]+$`.
+     - `openaiModel` is free-form (trim only; no hard validation).
+3. Dashboard delivery
+   - Extend `DashboardController` to add:
+     - `openaiModelDisplay` (defaults to `gpt-4.1-mini` when blank)
+     - `openaiVectorStoreIdDisplay` (“Not configured” when blank)
+   - Extend `dashboard.html` to render those values for configured projects.
+4. Tests
+   - Extend `ProjectSetupFlowTest` to cover persistence, redisplay, validation, and defaulting.
+   - Update any tests constructing `ProjectConfig` directly to pass the new fields (nulls).
+
 ## Implementation notes
 - Current config is persisted locally under `./.codeassistant/config.json` (non-test profiles). Keep this for now; later stories can migrate secrets away from disk.
 - Validation should be light but helpful:

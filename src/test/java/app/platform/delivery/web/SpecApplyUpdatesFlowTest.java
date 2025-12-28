@@ -56,7 +56,7 @@ class SpecApplyUpdatesFlowTest {
     Files.writeString(repoDir.resolve(SPEC_A_PATH), "spec-a: base content", StandardCharsets.UTF_8);
 
     projectConfigPort.save(
-        new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null));
+        new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null, null, null));
   }
 
   @Test
@@ -114,4 +114,3 @@ class SpecApplyUpdatesFlowTest {
         .andExpect(status().isCreated());
   }
 }
-

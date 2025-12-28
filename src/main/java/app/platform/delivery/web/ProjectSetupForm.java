@@ -8,6 +8,8 @@ public class ProjectSetupForm {
   @NotNull private ProjectConfigMode mode = ProjectConfigMode.LOCAL;
 
   @NotBlank private String openaiApiKey;
+  private String openaiModel;
+  private String openaiVectorStoreId;
 
   private String localRepoPath;
   private String githubRepo;
@@ -27,6 +29,22 @@ public class ProjectSetupForm {
 
   public void setOpenaiApiKey(String openaiApiKey) {
     this.openaiApiKey = openaiApiKey;
+  }
+
+  public String getOpenaiModel() {
+    return openaiModel;
+  }
+
+  public void setOpenaiModel(String openaiModel) {
+    this.openaiModel = openaiModel;
+  }
+
+  public String getOpenaiVectorStoreId() {
+    return openaiVectorStoreId;
+  }
+
+  public void setOpenaiVectorStoreId(String openaiVectorStoreId) {
+    this.openaiVectorStoreId = openaiVectorStoreId;
   }
 
   public String getLocalRepoPath() {
@@ -53,4 +71,3 @@ public class ProjectSetupForm {
     this.githubToken = githubToken;
   }
 }
-

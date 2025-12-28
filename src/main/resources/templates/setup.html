@@ -122,6 +122,35 @@
           <div class="error" th:if="${#fields.hasErrors('openaiApiKey')}" th:errors="*{openaiApiKey}"></div>
         </div>
 
+        <div class="row">
+          <label for="openaiModel">OpenAI model</label>
+          <input
+            id="openaiModel"
+            type="text"
+            th:field="*{openaiModel}"
+            placeholder="e.g. gpt-4.1-mini"
+          />
+          <div class="help">Used for Responses API calls (analysis + semantic search).</div>
+        </div>
+
+        <div class="row">
+          <label for="openaiVectorStoreId">OpenAI vector store id</label>
+          <input
+            id="openaiVectorStoreId"
+            type="text"
+            th:field="*{openaiVectorStoreId}"
+            placeholder="e.g. vs_abc123"
+          />
+          <div class="help">
+            When set, retrieval uses the Responses API File Search tool against this vector store.
+          </div>
+          <div
+            class="error"
+            th:if="${#fields.hasErrors('openaiVectorStoreId')}"
+            th:errors="*{openaiVectorStoreId}"
+          ></div>
+        </div>
+
         <div class="actions">
           <button type="submit">Save configuration</button>
           <a th:href="@{/}">Back to Dashboard</a>
@@ -141,4 +170,3 @@
     </script>
   </body>
 </html>
-

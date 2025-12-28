@@ -50,7 +50,8 @@ class SpecBrowsingTest {
     Files.writeString(repoDir.resolve(SPEC_B_PATH), SPEC_B_CONTENT, StandardCharsets.UTF_8);
     Files.writeString(repoDir.resolve("not-spec.txt"), "ignore me", StandardCharsets.UTF_8);
 
-    projectConfigPort.save(new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null));
+    projectConfigPort.save(
+        new ProjectConfig(ProjectConfigMode.LOCAL, null, repoDir.toString(), null, null, null, null));
   }
 
   @Test
@@ -85,4 +86,3 @@ class SpecBrowsingTest {
         .andExpect(content().string(containsString(SPEC_A_CONTENT)));
   }
 }
-
