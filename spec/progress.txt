@@ -46,3 +46,8 @@ Observations:
 
 - BL-0501 complete: file viewer added (`GET /file?path=...`) showing file content plus current indexed commit; search results link to the viewer.
 - Tests: `FileViewerFlowTest` verifies `/file` renders content + commit and `/search` includes `/file?path=...` link.
+
+- BL-0601 complete: Analysis workspace added (`/analysis`) + REST `POST /api/analysis` returning answer + retrieved context (code-scope filters to `type=code`).
+- Tests: `AnalysisFlowTest` covers API response (non-empty answer/context) and UI rendering under `test` profile.
+Observations:
+- Analysis uses deterministic local stub LLM (no network) + semantic retrieval via `SemanticSearchPort`.
