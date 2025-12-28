@@ -24,7 +24,8 @@
         margin-bottom: 0.25rem;
       }
       textarea,
-      select {
+      select,
+      input[type="text"] {
         width: 100%;
         padding: 0.5rem;
         border: 1px solid #ccc;
@@ -117,8 +118,19 @@
         </div>
       </form>
 
+      <form th:action="@{/observations}" method="get">
+        <div class="row">
+          <label for="q">Search</label>
+          <input id="q" type="text" name="q" th:value="${q}" placeholder="keyword" />
+        </div>
+        <div class="actions">
+          <button type="submit">Search</button>
+        </div>
+      </form>
+
       <div class="list">
-        <div class="muted" th:if="${#lists.isEmpty(observations)}">No observations yet.</div>
+        <div class="muted" th:if="${#lists.isEmpty(observations) and (q == null or q.isBlank())}">No observations yet.</div>
+        <div class="muted" th:if="${#lists.isEmpty(observations) and q != null and !q.isBlank()}">No matches.</div>
 
         <div class="item" th:each="obs : ${observations}">
           <div class="meta">
@@ -134,4 +146,3 @@
     </div>
   </body>
 </html>
-

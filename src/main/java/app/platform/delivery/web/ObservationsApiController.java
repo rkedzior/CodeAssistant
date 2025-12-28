@@ -4,12 +4,14 @@ import app.core.observations.Observation;
 import app.core.observations.ObservationSubtype;
 import app.core.observations.ObservationsPort;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -44,12 +46,22 @@ public class ObservationsApiController {
   }
 
   @GetMapping(path = "/api/observations", produces = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<List<Observation>> list() {
-    return ResponseEntity.ok(observationsPort.list());
+  public ResponseEntity<List<Observation>> list(@RequestParam(name = "q", required = false) String q) {
+    List<Observation> observations = observationsPort.list();
+    if (q == null || q.isBlank()) return ResponseEntity.ok(observations);
+
+    String query = q.trim().toLowerCase(Locale.ROOT);
+    return ResponseEntity.ok(
+        observations.stream()
+            .filter(
+                o ->
+                    o != null
+                        && o.text() != null
+                        && o.text().toLowerCase(Locale.ROOT).contains(query))
+            .toList());
   }
 
   public record CreateObservationRequest(String text, ObservationSubtype subtype) {}
 
   public record ErrorResponse(String error) {}
 }
-

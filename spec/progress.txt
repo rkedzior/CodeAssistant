@@ -57,3 +57,8 @@ Observations:
 
 - BL-0701 complete: Observations added (UI `/observations` + API `POST/GET /api/observations`) stored in vector store as `type=observation` with `subtype`.
 - Tests: `ObservationsFlowTest` covers API create/list + UI save/list under `test` profile.
+
+- BL-0702 complete: observation list supports keyword filtering (`q`) in UI (`GET /observations?q=...`) and API (`GET /api/observations?q=...`) via case-insensitive substring match on text.
+- Tests: extended `ObservationsFlowTest` covers API and UI filtering (case-insensitive) under `test` profile.
+Observations:
+- Implemented filtering in delivery layer (kept `ObservationsPort` unchanged) for MVP simplicity.

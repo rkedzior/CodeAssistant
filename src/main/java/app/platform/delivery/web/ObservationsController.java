@@ -6,6 +6,7 @@ import app.core.observations.ObservationsPort;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,12 +23,21 @@ public class ObservationsController {
   }
 
   @GetMapping("/observations")
-  public String observations(Model model) {
-    if (!model.containsAttribute("text")) model.addAttribute("text", "");
+  public String observations(@RequestParam(name = "q", required = false) String q, Model model) {
+    if (!model.containsAttribute("text")) model.addAttribute("text", "");       
     if (!model.containsAttribute("subtype")) model.addAttribute("subtype", ObservationSubtype.NOTE.key());
+    if (!model.containsAttribute("q")) model.addAttribute("q", q == null ? "" : q);
 
     model.addAttribute("subtypes", Arrays.stream(ObservationSubtype.values()).toList());
-    model.addAttribute("observations", toRows(observationsPort.list()));
+    List<ObservationRow> rows = toRows(observationsPort.list());
+    if (q != null && !q.isBlank()) {
+      String query = q.trim().toLowerCase(Locale.ROOT);
+      rows =
+          rows.stream()
+              .filter(r -> r.text() != null && r.text().toLowerCase(Locale.ROOT).contains(query))
+              .toList();
+    }
+    model.addAttribute("observations", rows);
     return "observations";
   }
 
@@ -45,7 +55,7 @@ public class ObservationsController {
 
     if (normalizedText.isBlank()) {
       model.addAttribute("errorMessage", "Observation text must not be blank.");
-      return observations(model);
+      return observations("", model);
     }
 
     ObservationSubtype parsedSubtype;
@@ -53,7 +63,7 @@ public class ObservationsController {
       parsedSubtype = ObservationSubtype.fromJson(normalizedSubtype);
     } catch (IllegalArgumentException e) {
       model.addAttribute("errorMessage", e.getMessage());
-      return observations(model);
+      return observations("", model);
     }
 
     observationsPort.save(normalizedText, parsedSubtype);
@@ -76,4 +86,3 @@ public class ObservationsController {
 
   public record ObservationRow(String id, String subtype, String text, Instant createdAt) {}
 }
-
