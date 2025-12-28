@@ -35,3 +35,8 @@ Observations:
 
 - BL-0302 complete: regex mode added to text search (`regex=true`); invalid regex returns 400 (API) and shows error banner (UI).
 - Tests: extended `TextSearchApiTest` covers regex happy path (`foo\\s+bar`) and invalid regex (`foo(`).
+
+- BL-0401 complete: semantic search mode added (UI `/search?mode=semantic` + API `GET /api/search/semantic?query=...&k=...`) returning ranked results.
+- Tests: `SemanticSearchApiTest` covers ranking and HTML rendering under `test` profile.
+Observations:
+- MVP semantic search is local deterministic token-hash cosine scoring over vector-store file contents (no OpenAI/network); ready for BL-0402 filters via `filters` param.

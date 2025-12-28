@@ -29,6 +29,12 @@
         border: 1px solid #ccc;
         border-radius: 6px;
       }
+      input[type="number"],
+      select {
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
       .actions {
         margin-top: 1rem;
         display: flex;
@@ -119,17 +125,31 @@
 
       <form th:action="@{/search}" method="get">
         <div class="row">
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="text" th:selected="${mode == 'text'}">Text</option>
+            <option value="semantic" th:selected="${mode == 'semantic'}">Semantic</option>
+          </select>
+        </div>
+        <div class="row">
           <label for="query">
-            Text search <span class="muted" th:text="${regex} ? '(regex)' : '(exact)'">(exact)</span>
+            <span th:text="${mode == 'semantic'} ? 'Semantic search' : 'Text search'">Text search</span>
+            <span class="muted" th:if="${mode == 'text'}" th:text="${regex} ? '(regex)' : '(exact)'">(exact)</span>
+            <span class="muted" th:if="${mode == 'semantic'}">(ranked)</span>
           </label>
           <input id="query" type="text" name="query" th:value="${query}" placeholder="e.g. MyClass" />
         </div>
-        <div class="row">
+        <div class="row" th:if="${mode == 'text'}">
           <label class="checkbox">
             <input type="checkbox" name="regex" value="true" th:checked="${regex}" />
             Regex
           </label>
           <div class="muted">Treat query as a regular expression.</div>
+        </div>
+        <div class="row" th:if="${mode == 'semantic'}">
+          <label for="k">Top K</label>
+          <input id="k" type="number" name="k" min="1" max="50" step="1" th:value="${k}" />
+          <div class="muted">Return the top results ranked by relevance.</div>
         </div>
         <div class="actions">
           <button type="submit" th:disabled="${!configured}">Search</button>
@@ -139,12 +159,32 @@
 
       <div class="results">
         <div th:if="${query != null and !query.isBlank()}">
-          <div class="muted" th:if="${error == null and #lists.isEmpty(results)}">No matches.</div>
+          <div class="muted" th:if="${error == null and mode == 'text' and #lists.isEmpty(textResults)}">
+            No matches.
+          </div>
+          <div
+            class="muted"
+            th:if="${error == null and mode == 'semantic' and #lists.isEmpty(semanticResults)}"
+          >
+            No matches.
+          </div>
 
-          <div th:each="file : ${results}" class="file">
-            <h3 th:text="${file.path}">path</h3>
-            <div th:each="m : ${file.matches}" class="match">
-              <span th:text="${m.lineNumber}">1</span><span>: </span><span th:text="${m.lineText}">line</span>
+          <div th:if="${mode == 'text'}">
+            <div th:each="file : ${textResults}" class="file">
+              <h3 th:text="${file.path}">path</h3>
+              <div th:each="m : ${file.matches}" class="match">
+                <span th:text="${m.lineNumber}">1</span><span>: </span><span th:text="${m.lineText}">line</span>
+              </div>
+            </div>
+          </div>
+
+          <div th:if="${mode == 'semantic'}">
+            <div th:each="r : ${semanticResults}" class="file">
+              <h3>
+                <span th:text="${r.path}">path</span>
+                <span class="muted" th:text="${'score ' + #numbers.formatDecimal(r.score, 1, 4)}">score</span>
+              </h3>
+              <div class="match" th:if="${r.preview != null}" th:text="${r.preview}">preview</div>
             </div>
           </div>
         </div>
