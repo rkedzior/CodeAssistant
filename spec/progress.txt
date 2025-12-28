@@ -111,3 +111,7 @@ Observations:
 Observations / short memory:
 - `ProjectConfig` now includes `openaiModel` and `openaiVectorStoreId` and remains backward compatible with existing `config.json` (missing fields).
 - `openaiVectorStoreId` validation is intentionally light: `^vs_[A-Za-z0-9]+$`.
+- BL-1202 complete: OpenAI Java SDK wired (client created only when API key is resolved) and `GET /api/openai/status` reports `{configured, model, vectorStoreId, apiKeySource}` without leaking secrets.
+- Tests: added `OpenAIStatusApiTest`; `.\mvnw.cmd test` passes (includes OpenAI SDK dependency resolution/download).
+Observations / short memory:
+- Centralized OpenAI settings resolution uses precedence `OPENAI_API_KEY` → `openai.api.key` → `ProjectConfig.openaiApiKey`.
