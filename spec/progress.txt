@@ -67,3 +67,8 @@ Observations:
 - Tests: `SpecBrowsingTest` covers API list/read + traversal rejection and UI rendering under `test` profile.
 Observations:
 - Spec browsing reads from the configured local repo root (`ProjectConfig.localRepoPath`) rather than this app’s own working tree.
+
+- BL-0802 complete: spec update proposals generated from observations (deterministic) and displayed grouped by spec file; API `POST /api/spec/propose-updates` and UI `POST /spec/propose-updates` added.
+- Tests: `SpecProposeUpdatesFlowTest` covers API + UI proposals including observation text under `test` profile.
+Observations:
+- Proposal algorithm is intentionally simple (appends an “updates from observations” section) to keep MVP deterministic/offline.
