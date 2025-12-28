@@ -53,6 +53,31 @@ public class IndexApiController {
     }
   }
 
+  @PostMapping(
+      path = "/api/index/reload",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<IndexJobState> startReloadIndex(@RequestBody UpdateIndexRequest request) {
+    if (request == null || request.commit() == null || request.commit().isBlank()) {
+      return ResponseEntity.badRequest()
+          .body(
+              new IndexJobState(
+                  IndexJobStatus.FAILED,
+                  "Failed.",
+                  Instant.now(),
+                  Instant.now(),
+                  "Field `commit` must not be blank."));
+    }
+
+    try {
+      return ResponseEntity.accepted()
+          .body(startInitialIndexUseCase.startFullReloadIndex(request.commit().trim()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest()
+          .body(new IndexJobState(IndexJobStatus.FAILED, "Failed.", Instant.now(), Instant.now(), e.getMessage()));
+    }
+  }
+
   @GetMapping(path = "/api/index/status", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<IndexJobState> getIndexStatus() {
     return ResponseEntity.ok(startInitialIndexUseCase.getStatus());

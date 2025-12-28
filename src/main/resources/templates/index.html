@@ -103,6 +103,7 @@
           autocomplete="off"
         />
         <button id="updateBtn" class="danger" th:disabled="${!configured}">Update index to commit</button>
+        <button id="reloadBtn" class="danger" th:disabled="${!configured}">Full reload</button>
       </div>
 
       <div id="confirmBox" class="status" style="display: none">
@@ -125,6 +126,16 @@
           <button id="cancelUpdateBtn" class="secondary">Cancel</button>
         </div>
       </div>
+
+      <div id="confirmReloadBox" class="status" style="display: none">
+        <div>
+          Confirm: fully reload the index at <strong id="reloadCommit">?</strong>?
+        </div>
+        <div class="actions">
+          <button id="confirmReloadBtn" class="danger">Confirm and start</button>
+          <button id="cancelReloadBtn" class="secondary">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -135,11 +146,17 @@
 
       const commitInput = document.getElementById("commitInput");
       const updateBtn = document.getElementById("updateBtn");
+      const reloadBtn = document.getElementById("reloadBtn");
       const confirmUpdateBox = document.getElementById("confirmUpdateBox");
       const confirmUpdateBtn = document.getElementById("confirmUpdateBtn");
       const cancelUpdateBtn = document.getElementById("cancelUpdateBtn");
       const updateFromCommit = document.getElementById("updateFromCommit");
       const updateToCommit = document.getElementById("updateToCommit");
+
+      const confirmReloadBox = document.getElementById("confirmReloadBox");
+      const confirmReloadBtn = document.getElementById("confirmReloadBtn");
+      const cancelReloadBtn = document.getElementById("cancelReloadBtn");
+      const reloadCommit = document.getElementById("reloadCommit");
 
       const jobStatus = document.getElementById("jobStatus");
       const jobProgress = document.getElementById("jobProgress");
@@ -176,6 +193,7 @@
       runBtn &&
         runBtn.addEventListener("click", () => {
           confirmUpdateBox.style.display = "none";
+          confirmReloadBox.style.display = "none";
           confirmBox.style.display = "block";
         });
 
@@ -192,6 +210,7 @@
           }
 
           confirmBox.style.display = "none";
+          confirmReloadBox.style.display = "none";
           confirmUpdateBox.style.display = "block";
           updateToCommit.textContent = commit;
           updateFromCommit.textContent = "Unknown";
@@ -213,9 +232,28 @@
           }
         });
 
+      reloadBtn &&
+        reloadBtn.addEventListener("click", () => {
+          const commit = (commitInput && commitInput.value ? commitInput.value : "").trim();
+          if (!commit) {
+            alert("Enter a target commit hash first.");
+            return;
+          }
+
+          confirmBox.style.display = "none";
+          confirmUpdateBox.style.display = "none";
+          confirmReloadBox.style.display = "block";
+          reloadCommit.textContent = commit;
+        });
+
       cancelUpdateBtn &&
         cancelUpdateBtn.addEventListener("click", () => {
           confirmUpdateBox.style.display = "none";
+        });
+
+      cancelReloadBtn &&
+        cancelReloadBtn.addEventListener("click", () => {
+          confirmReloadBox.style.display = "none";
         });
 
       confirmBtn.addEventListener("click", async () => {
@@ -235,6 +273,24 @@
           confirmUpdateBox.style.display = "none";
           const commit = (commitInput && commitInput.value ? commitInput.value : "").trim();
           const res = await fetch("/api/index/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ commit }),
+          });
+          const state = await res.json();
+          setJobState(state);
+
+          if (!pollTimer) {
+            pollTimer = setInterval(poll, 500);
+          }
+          await poll();
+        });
+
+      confirmReloadBtn &&
+        confirmReloadBtn.addEventListener("click", async () => {
+          confirmReloadBox.style.display = "none";
+          const commit = (commitInput && commitInput.value ? commitInput.value : "").trim();
+          const res = await fetch("/api/index/reload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ commit }),

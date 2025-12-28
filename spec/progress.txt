@@ -82,3 +82,6 @@ Observations:
 - Tests: `UpdateIndexFlowTest` covers update A→X via temp git repo and verifies `/api/metadata` lastIndexedCommit == X under `test` profile.
 Observations:
 - Git adapter reads file content at specific commits via `git show`/`git ls-tree` (no working-tree checkout required for update job).
+
+- BL-0902 complete: full reload indexing to a target commit hash via UI “Full reload” and API `POST /api/index/reload`; metadata `lastIndexedCommit` updates to target commit on success.
+- Tests: `ReloadIndexFlowTest` covers reload A→X and `/index` reload control under `test` profile.

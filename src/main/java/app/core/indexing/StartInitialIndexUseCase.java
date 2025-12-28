@@ -71,7 +71,7 @@ public class StartInitialIndexUseCase {
 
   public IndexJobState startUpdateIndex(String targetCommit) {
     if (targetCommit == null || targetCommit.isBlank()) {
-      throw new IllegalArgumentException("targetCommit must be non-blank.");
+      throw new IllegalArgumentException("targetCommit must be non-blank.");    
     }
 
     String trimmedTarget = targetCommit.trim();
@@ -95,6 +95,37 @@ public class StartInitialIndexUseCase {
               "Update: ");
 
           updateProgress("Update: updating metadata…");
+          sleep(PROGRESS_STEP_DELAY);
+
+          ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
+          ProjectMetadata updated =
+              new ProjectMetadata(existingMetadata.metadata().schemaVersion(), trimmedTarget);
+          projectStatePort.saveMetadata(updated);
+        });
+  }
+
+  public IndexJobState startFullReloadIndex(String targetCommit) {
+    if (targetCommit == null || targetCommit.isBlank()) {
+      throw new IllegalArgumentException("targetCommit must be non-blank.");
+    }
+
+    String trimmedTarget = targetCommit.trim();
+    String startingProgress = "Starting full reload at " + trimmedTarget + "...";
+
+    return startJob(
+        startingProgress,
+        "Completed reload.",
+        () -> {
+          updateProgress("Reload: enumerating tracked files at " + trimmedTarget + "...");
+          sleep(PROGRESS_STEP_DELAY);
+
+          List<String> trackedFiles = gitPort.listTrackedFilesAtCommit(trimmedTarget);
+          uploadTrackedFiles(
+              trackedFiles,
+              (path) -> gitPort.readFileAtCommit(trimmedTarget, path),
+              "Reload: ");
+
+          updateProgress("Reload: updating metadata...");
           sleep(PROGRESS_STEP_DELAY);
 
           ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
