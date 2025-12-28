@@ -3,6 +3,8 @@ package app.platform.adapters.analysis;
 import app.core.analysis.LlmPort;
 import app.core.analysis.RetrievedContextItem;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -10,8 +12,21 @@ public class LocalLlmAdapter implements LlmPort {
   private static final int MAX_PATHS = 6;
   private static final int MAX_PREVIEW_CHARS = 360;
 
+  private final boolean failOnce;
+  private final boolean failAlways;
+  private final AtomicBoolean didFailOnce = new AtomicBoolean(false);
+
+  public LocalLlmAdapter(
+      @Value("${codeassistant.llm.failOnce:false}") boolean failOnce,
+      @Value("${codeassistant.llm.failAlways:false}") boolean failAlways) {
+    this.failOnce = failOnce;
+    this.failAlways = failAlways;
+  }
+
   @Override
   public String answer(String prompt, List<RetrievedContextItem> retrievedContext) {
+    maybeThrowInjectedFault();
+
     String normalizedPrompt = prompt == null ? "" : prompt.trim();
     List<RetrievedContextItem> safeContext = retrievedContext == null ? List.of() : retrievedContext;
 
@@ -38,7 +53,16 @@ public class LocalLlmAdapter implements LlmPort {
     return out.toString();
   }
 
-  private static String firstUsefulPreview(List<RetrievedContextItem> items) {
+  private void maybeThrowInjectedFault() {
+    if (failAlways) {
+      throw new IllegalStateException("Injected LLM failure (codeassistant.llm.failAlways=true).");
+    }
+    if (failOnce && didFailOnce.compareAndSet(false, true)) {
+      throw new IllegalStateException("Injected LLM failure (codeassistant.llm.failOnce=true).");
+    }
+  }
+
+  private static String firstUsefulPreview(List<RetrievedContextItem> items) {  
     for (RetrievedContextItem item : items) {
       if (item == null) continue;
       String preview = item.preview();
@@ -68,4 +92,3 @@ public class LocalLlmAdapter implements LlmPort {
     return out.toString();
   }
 }
-

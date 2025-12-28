@@ -51,3 +51,6 @@ Observations:
 - Tests: `AnalysisFlowTest` covers API response (non-empty answer/context) and UI rendering under `test` profile.
 Observations:
 - Analysis uses deterministic local stub LLM (no network) + semantic retrieval via `SemanticSearchPort`.
+
+- BL-0602 complete: analysis errors surfaced consistently (UI banner + API 400) and retry supported via fault injection (`codeassistant.llm.failOnce=true`).
+- Tests: `AnalysisRetryFlowTest` validates first-call failure and second-call success (API + UI).
