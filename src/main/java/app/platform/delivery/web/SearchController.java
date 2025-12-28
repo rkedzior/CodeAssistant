@@ -1,6 +1,7 @@
 package app.platform.delivery.web;
 
 import app.core.projectconfig.ProjectConfigPort;
+import app.core.search.InvalidRegexException;
 import app.core.search.TextSearchPort;
 import app.core.search.TextSearchResponse;
 import java.util.List;
@@ -20,14 +21,24 @@ public class SearchController {
   }
 
   @GetMapping("/search")
-  public String search(@RequestParam(name = "query", required = false) String query, Model model) {
+  public String search(
+      @RequestParam(name = "query", required = false) String query,
+      @RequestParam(name = "regex", required = false, defaultValue = "false") boolean regex,
+      Model model) {
     boolean configured = projectConfigPort.load().isPresent();
     model.addAttribute("configured", configured);
     model.addAttribute("query", query == null ? "" : query);
+    model.addAttribute("regex", regex);
+    model.addAttribute("error", null);
 
     if (configured && query != null && !query.isBlank()) {
-      TextSearchResponse response = textSearchPort.searchExact(query);
-      model.addAttribute("results", response.files());
+      try {
+        TextSearchResponse response = textSearchPort.search(query, regex);
+        model.addAttribute("results", response.files());
+      } catch (InvalidRegexException e) {
+        model.addAttribute("error", e.getMessage());
+        model.addAttribute("results", List.of());
+      }
     } else {
       model.addAttribute("results", List.of());
     }
@@ -35,4 +46,3 @@ public class SearchController {
     return "search";
   }
 }
-

@@ -1,7 +1,9 @@
 package app.platform.delivery.web;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,14 +55,65 @@ class TextSearchApiTest {
         .andExpect(jsonPath("$.files[*].path", not(hasItem("ignored.log"))));
   }
 
+  @Test
+  void textSearch_regexMode_returnsMatchingLine() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir);
+    initTempGitRepo(repoDir, "foo    bar\nbaz\n", "foo    bar\nbaz\n");
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test"))
+        .andExpect(status().is3xxRedirection());
+
+    mockMvc
+        .perform(get("/api/search/text").param("query", "foo\\s+bar").param("regex", "true"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.query").value("foo\\s+bar"))
+        .andExpect(jsonPath("$.files.length()").value(1))
+        .andExpect(jsonPath("$.files[0].path").value("tracked.txt"))
+        .andExpect(jsonPath("$.files[0].matches[0].lineNumber").value(1))
+        .andExpect(jsonPath("$.files[0].matches[0].lineText", containsString("foo")));
+  }
+
+  @Test
+  void textSearch_invalidRegex_returnsBadRequest_andNoResults() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir);
+    initTempGitRepo(repoDir, "foo bar\n", "foo bar\n");
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test"))
+        .andExpect(status().is3xxRedirection());
+
+    mockMvc
+        .perform(get("/api/search/text").param("query", "foo(").param("regex", "true"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.query").value("foo("))
+        .andExpect(jsonPath("$.files.length()").value(0))
+        .andExpect(jsonPath("$.error").value(startsWith("Invalid regex:")));
+  }
+
   private static void initTempGitRepoWithIgnoredMatch(Path repoDir) throws Exception {
+    initTempGitRepo(repoDir, "public class MyClass {}\n", "public class MyClass {}\n");
+  }
+
+  private static void initTempGitRepo(Path repoDir, String trackedContent, String ignoredContent)
+      throws Exception {
     runGit(repoDir, "init");
     runGit(repoDir, "config", "user.email", "test@example.com");
     runGit(repoDir, "config", "user.name", "Test User");
 
     Files.writeString(repoDir.resolve(".gitignore"), "ignored.log\n", StandardCharsets.UTF_8);
-    Files.writeString(repoDir.resolve("tracked.txt"), "public class MyClass {}\n", StandardCharsets.UTF_8);
-    Files.writeString(repoDir.resolve("ignored.log"), "public class MyClass {}\n", StandardCharsets.UTF_8);
+    Files.writeString(repoDir.resolve("tracked.txt"), trackedContent, StandardCharsets.UTF_8);
+    Files.writeString(repoDir.resolve("ignored.log"), ignoredContent, StandardCharsets.UTF_8);
 
     runGit(repoDir, "add", ".gitignore", "tracked.txt");
     runGit(repoDir, "commit", "-m", "initial");
@@ -108,4 +161,3 @@ class TextSearchApiTest {
     }
   }
 }
-

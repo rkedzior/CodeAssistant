@@ -3,6 +3,7 @@ package app.platform.adapters.search;
 import app.core.git.GitPort;
 import app.core.projectconfig.ProjectConfig;
 import app.core.projectconfig.ProjectConfigPort;
+import app.core.search.InvalidRegexException;
 import app.core.search.TextSearchFileResult;
 import app.core.search.TextSearchMatchLine;
 import app.core.search.TextSearchPort;
@@ -23,6 +24,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -47,28 +50,32 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
   }
 
   @Override
-  public TextSearchResponse searchExact(String query) {
+  public TextSearchResponse search(String query, boolean regex) {
     if (query == null || query.isBlank()) {
-      return new TextSearchResponse(query, List.of());
+      return new TextSearchResponse(query, List.of(), null);
+    }
+
+    if (regex) {
+      validateRegexOrThrow(query);
     }
 
     List<String> trackedFiles = gitPort.listTrackedFiles();
     if (trackedFiles.isEmpty()) {
-      return new TextSearchResponse(query, List.of());
+      return new TextSearchResponse(query, List.of(), null);
     }
 
     if (!forceJavaFallback && isRipgrepAvailable()) {
       try {
-        return runRipgrep(query, trackedFiles);
+        return runRipgrep(query, trackedFiles, regex);
       } catch (Exception ignored) {
         // Fall back to Java search for environments without rg or when rg errors.
       }
     }
 
-    return runJavaFallback(query, trackedFiles);
+    return runJavaFallback(query, trackedFiles, regex);
   }
 
-  private TextSearchResponse runRipgrep(String query, List<String> trackedFiles) {
+  private TextSearchResponse runRipgrep(String query, List<String> trackedFiles, boolean regex) {
     Path repoPath = resolveLocalRepoPath();
 
     Path fileList;
@@ -82,20 +89,19 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
     try {
       Process process;
       try {
-        process =
-            new ProcessBuilder(
-                    "rg",
-                    "--fixed-strings",
-                    "--vimgrep",
-                    "--color",
-                    "never",
-                    "--no-messages",
-                    "--files-from",
-                    fileList.toString(),
-                    "--",
-                    query)
-                .directory(repoPath.toFile())
-                .start();
+        List<String> command = new ArrayList<>();
+        command.add("rg");
+        if (!regex) command.add("--fixed-strings");
+        command.add("--vimgrep");
+        command.add("--color");
+        command.add("never");
+        command.add("--no-messages");
+        command.add("--files-from");
+        command.add(fileList.toString());
+        command.add("--");
+        command.add(query);
+
+        process = new ProcessBuilder(command).directory(repoPath.toFile()).start();
       } catch (IOException e) {
         throw new IllegalStateException("Failed to start rg process.", e);
       }
@@ -118,7 +124,7 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
       int exit = process.exitValue();
 
       if (exit == 1) {
-        return new TextSearchResponse(query, List.of());
+        return new TextSearchResponse(query, List.of(), null);
       }
       if (exit != 0) {
         throw new IllegalStateException("rg failed (exit=" + exit + "): " + stderr.trim());
@@ -153,7 +159,7 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
         results.add(new TextSearchFileResult(entry.getKey(), matches));
       }
       results.sort(Comparator.comparing(TextSearchFileResult::path));
-      return new TextSearchResponse(query, results);
+      return new TextSearchResponse(query, results, null);
     } finally {
       try {
         Files.deleteIfExists(fileList);
@@ -163,7 +169,16 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
     }
   }
 
-  private TextSearchResponse runJavaFallback(String query, List<String> trackedFiles) {
+  private TextSearchResponse runJavaFallback(String query, List<String> trackedFiles, boolean regex) {
+    Pattern pattern = null;
+    if (regex) {
+      try {
+        pattern = Pattern.compile(query);
+      } catch (PatternSyntaxException e) {
+        throw new InvalidRegexException(query, toRegexErrorMessage(e));
+      }
+    }
+
     List<TextSearchFileResult> results = new ArrayList<>();
     for (String repoRelativePath : trackedFiles) {
       byte[] contentBytes = gitPort.readWorkingTreeFile(repoRelativePath);
@@ -178,7 +193,8 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
         int lineNumber = 0;
         while ((line = reader.readLine()) != null) {
           lineNumber++;
-          if (line.contains(query)) {
+          boolean isMatch = regex ? pattern.matcher(line).find() : line.contains(query);
+          if (isMatch) {
             matches.add(new TextSearchMatchLine(lineNumber, line));
             if (matches.size() >= MAX_MATCH_LINES_PER_FILE) break;
           }
@@ -193,7 +209,23 @@ public class RipgrepTextSearchAdapter implements TextSearchPort {
     }
 
     results.sort(Comparator.comparing(TextSearchFileResult::path));
-    return new TextSearchResponse(query, results);
+    return new TextSearchResponse(query, results, null);
+  }
+
+  private static void validateRegexOrThrow(String query) {
+    try {
+      Pattern.compile(query);
+    } catch (PatternSyntaxException e) {
+      throw new InvalidRegexException(query, toRegexErrorMessage(e));
+    }
+  }
+
+  private static String toRegexErrorMessage(PatternSyntaxException e) {
+    StringBuilder message = new StringBuilder("Invalid regex: ").append(e.getDescription());
+    if (e.getIndex() >= 0) {
+      message.append(" at index ").append(e.getIndex());
+    }
+    return message.toString();
   }
 
   private boolean isRipgrepAvailable() {

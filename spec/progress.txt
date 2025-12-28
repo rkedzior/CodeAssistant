@@ -32,3 +32,6 @@ Observations:
 
 - BL-0301 complete: exact text search via `TextSearchPort` + `RipgrepTextSearchAdapter` (`rg`-first, Java fallback); UI `/search`; API `GET /api/search/text`.
 - Tests: `TextSearchApiTest` verifies tracked match returned and gitignored match excluded (forces Java fallback in `test` profile).
+
+- BL-0302 complete: regex mode added to text search (`regex=true`); invalid regex returns 400 (API) and shows error banner (UI).
+- Tests: extended `TextSearchApiTest` covers regex happy path (`foo\\s+bar`) and invalid regex (`foo(`).

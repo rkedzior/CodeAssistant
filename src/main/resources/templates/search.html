@@ -58,6 +58,23 @@
         border-radius: 6px;
         margin-bottom: 1rem;
       }
+      .error {
+        background: #ffecec;
+        border: 1px solid #f5b5b5;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        color: #8a1f1f;
+      }
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-weight: 600;
+      }
+      .checkbox input {
+        margin: 0;
+      }
       .results {
         margin-top: 1.25rem;
       }
@@ -93,13 +110,26 @@
 
       <div class="notice" th:if="${!configured}">
         <div>Project is not configured yet.</div>
-        <div class="muted">Configure the project before searching.</div>
+        <div class="muted">Configure the project before searching.</div>    
+      </div>
+
+      <div class="error" th:if="${error != null}">
+        <div th:text="${error}">Invalid regex.</div>
       </div>
 
       <form th:action="@{/search}" method="get">
         <div class="row">
-          <label for="query">Text search (exact)</label>
+          <label for="query">
+            Text search <span class="muted" th:text="${regex} ? '(regex)' : '(exact)'">(exact)</span>
+          </label>
           <input id="query" type="text" name="query" th:value="${query}" placeholder="e.g. MyClass" />
+        </div>
+        <div class="row">
+          <label class="checkbox">
+            <input type="checkbox" name="regex" value="true" th:checked="${regex}" />
+            Regex
+          </label>
+          <div class="muted">Treat query as a regular expression.</div>
         </div>
         <div class="actions">
           <button type="submit" th:disabled="${!configured}">Search</button>
@@ -109,7 +139,7 @@
 
       <div class="results">
         <div th:if="${query != null and !query.isBlank()}">
-          <div class="muted" th:if="${#lists.isEmpty(results)}">No matches.</div>
+          <div class="muted" th:if="${error == null and #lists.isEmpty(results)}">No matches.</div>
 
           <div th:each="file : ${results}" class="file">
             <h3 th:text="${file.path}">path</h3>
@@ -122,4 +152,3 @@
     </div>
   </body>
 </html>
-
