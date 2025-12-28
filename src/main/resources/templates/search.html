@@ -110,13 +110,13 @@
       }
     </style>
   </head>
-  <body>
+  <body th:with="isConfigured=${#ctx.containsVariable('configured') and (configured == true)}">
     <div class="card">
       <h1>Search</h1>
 
-      <div class="notice" th:if="${!configured}">
+      <div class="notice" th:if="${!isConfigured}">
         <div>Project is not configured yet.</div>
-        <div class="muted">Configure the project before searching.</div>    
+        <div class="muted">Configure the project before searching.</div>
       </div>
 
       <div class="error" th:if="${error != null}">
@@ -167,7 +167,7 @@
           <div class="muted">Filter results to a subtype (e.g. spec, readme, ui).</div>
         </div>
         <div class="actions">
-          <button type="submit" th:disabled="${!configured}">Search</button>    
+          <button type="submit" th:disabled="${!isConfigured}">Search</button>
           <a th:href="@{/}">Back to Dashboard</a>
         </div>
       </form>

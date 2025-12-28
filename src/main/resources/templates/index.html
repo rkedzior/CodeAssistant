@@ -65,11 +65,11 @@
       }
     </style>
   </head>
-  <body>
+  <body th:with="isConfigured=${#ctx.containsVariable('configured') and (configured == true)}">
     <div class="card">
       <h1>Indexing</h1>
 
-      <div class="notice" th:if="${!configured}">
+      <div class="notice" th:if="${!isConfigured}">
         <div>Project is not configured yet.</div>
         <div class="muted">Configure the project before running indexing.</div>
       </div>
@@ -90,7 +90,7 @@
       </div>
 
       <div class="actions">
-        <button id="runBtn" th:disabled="${!configured}">Run initial index</button>
+        <button id="runBtn" th:disabled="${!isConfigured}">Run initial index</button>
         <a th:href="@{/}">Back to Dashboard</a>
       </div>
 
@@ -98,12 +98,12 @@
         <input
           id="commitInput"
           type="text"
-          th:disabled="${!configured}"
+          th:disabled="${!isConfigured}"
           placeholder="Commit hash (e.g. abc1234)"
           autocomplete="off"
         />
-        <button id="updateBtn" class="danger" th:disabled="${!configured}">Update index to commit</button>
-        <button id="reloadBtn" class="danger" th:disabled="${!configured}">Full reload</button>
+        <button id="updateBtn" class="danger" th:disabled="${!isConfigured}">Update index to commit</button>
+        <button id="reloadBtn" class="danger" th:disabled="${!isConfigured}">Full reload</button>
       </div>
 
       <div id="confirmBox" class="status" style="display: none">

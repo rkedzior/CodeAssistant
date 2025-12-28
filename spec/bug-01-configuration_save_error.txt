@@ -1,0 +1,30 @@
+There is an exception while saving the configuration in /setup page:
+2025-12-28T16:21:29.029+01:00 ERROR 18780 --- [codeassistant] [nio-8080-exec-8] org.thymeleaf.TemplateEngine             : [THYMELEAF][http-nio-8080-exec-8] Exception processing template "index": Exception evaluating SpringEL expression: "!configured" (template: "index" - line 72, col 27)
+
+org.thymeleaf.exceptions.TemplateProcessingException: Exception evaluating SpringEL expression: "!configured" (template: "index" - line 72, col 27)
+
+---
+# Implementation plan (BUG-01)
+
+## Hypothesis / root cause
+- The Thymeleaf template `index.html` expects a model attribute `configured` and evaluates `th:if="${!configured}"`.
+- In some request flows (e.g., a redirect/forward or a non-annotated MVC view controller rendering `index` without a `Model`),
+  the template is rendered without `configured` in the model, causing SpringEL evaluation to throw.
+
+## Desired behavior
+- Rendering any page that references `configured` must not throw if the model attribute is missing.
+- When `configured` is missing, the UI should behave as "not configured" (show notice + disable actions).
+
+## Fix plan
+1. Add a global model attribute for `configured` via `@ControllerAdvice` + `@ModelAttribute("configured")` (covers annotated controllers).
+2. Make Thymeleaf templates resilient by guarding uses of `configured` with `#ctx.containsVariable('configured')`, treating missing as false.
+   - Start with `src/main/resources/templates/index.html` (line ~72 and all other `configured` usages in that template).
+   - If other templates contain `th:if="${!configured}"` / `th:disabled="${!configured}"`, apply the same pattern for consistency.
+3. Add/extend a regression test:
+   - Cover the user flow: `POST /setup` then follow redirect and assert the response is 2xx (no Thymeleaf exception).
+   - If reproducing via MockMvc is hard, add a focused test that renders the `index` view without explicitly setting `configured`.
+
+## Acceptance criteria
+- Reproducing the reported flow no longer throws a Thymeleaf TemplateProcessingException.
+- `index` page renders with the "not configured" notice when `configured` is absent.
+- Tests pass: `.\mvnw.cmd test`.

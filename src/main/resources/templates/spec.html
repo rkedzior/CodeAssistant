@@ -117,7 +117,7 @@
       }
     </style>
   </head>
-  <body>
+  <body th:with="isConfigured=${#ctx.containsVariable('configured') and (configured == true)}">
     <div class="card">
       <h1>Spec Manager</h1>
 
@@ -125,13 +125,13 @@
 
       <div class="actions">
         <a th:href="@{/}">Dashboard</a>
-        <form th:if="${configured}" th:action="@{/spec/propose-updates}" method="post" style="margin: 0">
+        <form th:if="${isConfigured}" th:action="@{/spec/propose-updates}" method="post" style="margin: 0">
           <input type="hidden" name="path" th:value="${path}" />
           <button class="btn" type="submit">Propose updates</button>
         </form>
       </div>
 
-      <div class="notice" th:if="${!configured}">
+      <div class="notice" th:if="${!isConfigured}">
         <div>Project is not configured yet.</div>
         <div class="muted">Configure the project before browsing spec files.</div>
       </div>
@@ -140,7 +140,7 @@
         <div th:text="${error}">Error.</div>
       </div>
 
-      <div class="layout" th:if="${configured}">
+      <div class="layout" th:if="${isConfigured}">
         <div class="panel files">
           <h2 style="margin: 0">Files</h2>
           <div class="muted" style="margin-top: 0.5rem" th:if="${files.isEmpty()}">
@@ -169,7 +169,7 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-top: 1rem" th:if="${configured and proposals != null}">
+      <div class="panel" style="margin-top: 1rem" th:if="${isConfigured and proposals != null}">
         <h2 style="margin: 0">Proposed updates</h2>
         <div class="muted" style="margin-top: 0.5rem" th:if="${proposals.isEmpty()}">
           No proposals available (save at least one observation first).

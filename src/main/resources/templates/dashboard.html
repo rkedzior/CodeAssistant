@@ -35,7 +35,7 @@
       }
     </style>
   </head>
-  <body>
+  <body th:with="isConfigured=${#ctx.containsVariable('configured') and (configured == true)}">
     <div class="card">
       <h1>Dashboard</h1>
 
@@ -44,7 +44,7 @@
       <div class="status">
         <div>
           Project status:
-          <strong th:text="${configured} ? 'Configured' : 'Not configured'">Not configured</strong>
+          <strong th:text="${isConfigured} ? 'Configured' : 'Not configured'">Not configured</strong>
         </div>
         <div style="margin-top: 0.5rem">
           Last indexed commit:

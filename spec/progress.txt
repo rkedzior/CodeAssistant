@@ -100,3 +100,7 @@ Observations:
 
 - BL-1102 complete: resilience added for missing `metadata.json` in vector store (treated as absent and recreated); dashboard shows “Not indexed” and reindex succeeds.
 - Tests: `MetadataResilienceTest` covers metadata deletion/recreation + reindex under `test` profile.
+
+- BUG-01 fixed: Thymeleaf could render `index` without `configured` in the model, causing `th:if="${!configured}"` to throw.
+- Fix: added global `configured` model attribute and made templates use a safe `isConfigured` derived from `#ctx.containsVariable('configured')`.
+- Tests: added `IndexTemplateResilienceTest` + extended `ProjectSetupFlowTest`; `.\mvnw.cmd test` passes.

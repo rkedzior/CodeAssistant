@@ -98,7 +98,7 @@
       }
     </style>
   </head>
-  <body>
+  <body th:with="isConfigured=${#ctx.containsVariable('configured') and (configured == true)}">
     <div class="card">
       <h1>Analysis</h1>
 
@@ -109,12 +109,12 @@
         </div>
       </div>
 
-      <div class="notice" th:if="${!configured}">
+      <div class="notice" th:if="${!isConfigured}">
         <div>Project is not configured yet.</div>
         <div class="muted">Configure the project before running analysis.</div>
       </div>
 
-      <div class="notice" th:if="${configured and !indexed}">
+      <div class="notice" th:if="${isConfigured and !indexed}">
         <div>Repository is not indexed yet.</div>
         <div class="muted">
           Run indexing first to enable retrieval context.
@@ -144,7 +144,7 @@
           <div class="muted">When enabled, retrieval filters to <span class="mono">type=code</span>.</div>
         </div>
         <div class="actions">
-          <button type="submit" th:disabled="${!configured or !indexed}">Analyze</button>
+          <button type="submit" th:disabled="${!isConfigured or !indexed}">Analyze</button>
           <a th:href="@{/}">Back to Dashboard</a>
         </div>
       </form>

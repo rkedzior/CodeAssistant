@@ -47,6 +47,11 @@ class ProjectSetupFlowTest {
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
         .andExpect(content().string(containsString("Configured")));
+
+    mockMvc
+        .perform(get("/index"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
   }
 
   @Test
@@ -66,6 +71,11 @@ class ProjectSetupFlowTest {
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
         .andExpect(content().string(containsString("Configured")));
+
+    mockMvc
+        .perform(get("/index"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
   }
 
   @Test
@@ -87,4 +97,3 @@ class ProjectSetupFlowTest {
         .andExpect(content().string(containsString("Not configured")));
   }
 }
-
