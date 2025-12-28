@@ -71,6 +71,29 @@ public class RepoSpecFolderAdapter implements SpecStoragePort {
     return Optional.of(new SpecFile(normalized, content));
   }
 
+  @Override
+  public void writeSpecFile(String repoRelativePath, String content) {
+    String normalized = normalizeRepoRelativeSpecPath(repoRelativePath);
+    Path repoPath = resolveLocalRepoPath();
+    Path specDir = repoPath.resolve("spec").normalize();
+    Path filePath = repoPath.resolve(normalized).normalize();
+    if (!filePath.startsWith(specDir)) {
+      throw new IllegalArgumentException("Path must be under spec/.");
+    }
+
+    Path parent = filePath.getParent();
+    if (parent == null) {
+      throw new IllegalArgumentException("Path must be under spec/.");
+    }
+
+    try {
+      Files.createDirectories(parent);
+      Files.writeString(filePath, content == null ? "" : content, StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to write spec file: " + normalized, e);
+    }
+  }
+
   private Path resolveLocalRepoPath() {
     ProjectConfig config =
         projectConfigPort.load().orElseThrow(() -> new IllegalStateException("Project is not configured."));
@@ -122,4 +145,3 @@ public class RepoSpecFolderAdapter implements SpecStoragePort {
     return path;
   }
 }
-

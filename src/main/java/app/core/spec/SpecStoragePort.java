@@ -7,5 +7,6 @@ public interface SpecStoragePort {
   List<String> listSpecFiles();
 
   Optional<SpecFile> readSpecFile(String repoRelativePath);
-}
 
+  void writeSpecFile(String repoRelativePath, String content);
+}

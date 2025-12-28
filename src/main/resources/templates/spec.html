@@ -121,6 +121,8 @@
     <div class="card">
       <h1>Spec Manager</h1>
 
+      <div class="notice" th:if="${successMessage}" th:text="${successMessage}"></div>
+
       <div class="actions">
         <a th:href="@{/}">Dashboard</a>
         <form th:if="${configured}" th:action="@{/spec/propose-updates}" method="post" style="margin: 0">
@@ -172,11 +174,21 @@
         <div class="muted" style="margin-top: 0.5rem" th:if="${proposals.isEmpty()}">
           No proposals available (save at least one observation first).
         </div>
-        <div th:each="p : ${proposals}" style="margin-top: 1rem">
-          <div class="path" th:text="${p.path()}">spec/file.md</div>
-          <pre th:text="${p.proposedContent()}">proposed content</pre>
-          <div class="muted" th:if="${p.rationale() != null}" th:text="${p.rationale()}"></div>
-        </div>
+        <form th:if="${!proposals.isEmpty()}" th:action="@{/spec/apply-updates}" method="post">
+          <input type="hidden" name="path" th:value="${path}" />
+          <div class="actions" style="margin: 0.75rem 0 0 0">
+            <button class="btn" type="submit">Apply updates</button>
+          </div>
+
+          <div th:each="p : ${proposals}" style="margin-top: 1rem">
+            <label style="display: flex; align-items: baseline; gap: 0.5rem">
+              <input type="checkbox" name="paths" th:value="${p.path()}" checked />
+              <span class="path" th:text="${p.path()}">spec/file.md</span>
+            </label>
+            <pre th:text="${p.proposedContent()}">proposed content</pre>
+            <div class="muted" th:if="${p.rationale() != null}" th:text="${p.rationale()}"></div>
+          </div>
+        </form>
       </div>
     </div>
   </body>

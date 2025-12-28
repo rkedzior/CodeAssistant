@@ -72,3 +72,8 @@ Observations:
 - Tests: `SpecProposeUpdatesFlowTest` covers API + UI proposals including observation text under `test` profile.
 Observations:
 - Proposal algorithm is intentionally simple (appends an “updates from observations” section) to keep MVP deterministic/offline.
+
+- BL-0803 complete: apply flow added to write accepted proposals into repo `/spec/*.md` working tree; API `POST /api/spec/apply-updates` and UI `POST /spec/apply-updates` added with success banner.
+- Tests: `SpecApplyUpdatesFlowTest` covers API apply (writes file) and UI apply (success flash + redirect) under `test` profile.
+Observations:
+- Apply recomputes deterministic proposals and writes only selected paths (no server-side proposal persistence).
