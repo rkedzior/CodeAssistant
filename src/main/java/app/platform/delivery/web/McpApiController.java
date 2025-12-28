@@ -5,12 +5,17 @@ import app.core.search.SemanticSearchPort;
 import app.core.search.SemanticSearchResponse;
 import app.core.search.TextSearchPort;
 import app.core.search.TextSearchResponse;
+import app.core.observations.Observation;
+import app.core.observations.ObservationSubtype;
+import app.core.observations.ObservationsPort;
 import app.platform.mcp.api.McpSearchRequest;
 import app.platform.mcp.api.McpSearchResponse;
+import app.platform.mcp.api.McpWriteObservationRequest;
 import app.platform.mcp.McpToolRegistry;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,14 +28,17 @@ public class McpApiController {
   private final McpToolRegistry mcpToolRegistry;
   private final TextSearchPort textSearchPort;
   private final SemanticSearchPort semanticSearchPort;
+  private final ObservationsPort observationsPort;
 
   public McpApiController(
       McpToolRegistry mcpToolRegistry,
       TextSearchPort textSearchPort,
-      SemanticSearchPort semanticSearchPort) {
+      SemanticSearchPort semanticSearchPort,
+      ObservationsPort observationsPort) {
     this.mcpToolRegistry = mcpToolRegistry;
     this.textSearchPort = textSearchPort;
     this.semanticSearchPort = semanticSearchPort;
+    this.observationsPort = observationsPort;
   }
 
   @GetMapping(path = "/api/mcp/status", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -83,7 +91,39 @@ public class McpApiController {
     return ResponseEntity.badRequest().body(new ErrorResponse("Field `mode` must be one of: text, semantic."));
   }
 
-  public record McpStatusResponse(boolean running, List<String> tools) {}       
+  @PostMapping(
+      path = "/api/mcp/write_observation",
+      consumes = MediaType.APPLICATION_JSON_VALUE,
+      produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<?> writeObservation(@RequestBody McpWriteObservationRequest request) {
+    if (request == null) {
+      return ResponseEntity.badRequest().body(new ErrorResponse("Request body is required."));
+    }
+    if (request.text() == null || request.text().isBlank()) {
+      return ResponseEntity.badRequest().body(new ErrorResponse("Field `text` must not be blank."));
+    }
+
+    ObservationSubtype parsedSubtype;
+    try {
+      String rawSubtype = request.subtype();
+      if (rawSubtype == null || rawSubtype.isBlank()) {
+        parsedSubtype = ObservationSubtype.NOTE;
+      } else {
+        parsedSubtype = ObservationSubtype.fromJson(rawSubtype.trim().toLowerCase(Locale.ROOT));
+      }
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+    }
+
+    try {
+      Observation saved = observationsPort.save(request.text(), parsedSubtype);
+      return ResponseEntity.ok(saved);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+    }
+  }
+
+  public record McpStatusResponse(boolean running, List<String> tools) {}
 
   public record ErrorResponse(String error) {}
 }

@@ -32,6 +32,54 @@
       ul {
         margin: 0.5rem 0 0 1.25rem;
       }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      .row {
+        margin: 0.75rem 0;
+      }
+      .actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 6px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      .notice {
+        background: #e7f3ff;
+        border: 1px solid #b6d8ff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-top: 1rem;
+      }
+      .notice.error {
+        background: #fee2e2;
+        border-color: #fecaca;
+      }
+      pre {
+        margin: 0.5rem 0 0 0;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fff;
+        overflow: auto;
+      }
     </style>
   </head>
   <body>
@@ -56,7 +104,48 @@
           <a th:href="@{/}">Back to Dashboard</a>
         </div>
       </div>
+
+      <div class="status" style="margin-top: 1rem">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.1rem">write_observation (test)</h2>
+
+        <div class="notice" th:if="${writeObservationSuccessMessage}">
+          <div th:text="${writeObservationSuccessMessage}">Observation saved.</div>
+          <div class="muted" style="margin-top: 0.5rem">
+            <a th:href="@{/observations}">View in Observations</a>
+          </div>
+        </div>
+        <div class="notice error" th:if="${writeObservationErrorMessage}" th:text="${writeObservationErrorMessage}"></div>
+
+        <div class="muted" th:if="${writeObservationResult}">
+          Saved observation result:
+          <pre
+            th:text="${'id: ' + writeObservationResult.id + '\nsubtype: ' + writeObservationResult.subtype + '\ncreatedAt: ' + writeObservationResult.createdAt + '\n\n' + writeObservationResult.text}"
+          ></pre>
+        </div>
+
+        <form th:action="@{/mcp/write-observation}" method="post">
+          <div class="row">
+            <label for="subtype">Subtype</label>
+            <select id="subtype" name="subtype">
+              <option
+                th:each="s : ${subtypes}"
+                th:value="${s.key()}"
+                th:text="${s.key()}"
+                th:selected="${s.key() == writeObservationSubtype}"
+              ></option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label for="text">Text</label>
+            <textarea id="text" name="text" rows="4" th:text="${writeObservationText}"></textarea>
+          </div>
+
+          <div class="actions">
+            <button type="submit">Run write_observation</button>
+          </div>
+        </form>
+      </div>
     </div>
   </body>
 </html>
-

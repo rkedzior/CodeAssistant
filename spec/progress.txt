@@ -91,3 +91,6 @@ Observations:
 
 - BL-1002 complete: MCP search tool available via `POST /api/mcp/search` supporting `mode=text|semantic` and reusing existing search ports.
 - Tests: `McpSearchApiTest` covers MCP text and semantic search modes under `test` profile.
+
+- BL-1003 complete: MCP `write_observation` tool implemented via API `POST /api/mcp/write_observation` and a test action form on `/mcp`; saved observations are visible on `/observations`.
+- Tests: `McpWriteObservationFlowTest` covers API and MCP Status form flow under `test` profile.
