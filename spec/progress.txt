@@ -97,3 +97,6 @@ Observations:
 
 - BL-1101 complete: end-to-end happy path verified via a single integration test covering configure → index → text search → analysis → observation → spec propose/apply.
 - Tests: `EndToEndHappyPathTest` covers the combined MVP workflow under `test` profile.
+
+- BL-1102 complete: resilience added for missing `metadata.json` in vector store (treated as absent and recreated); dashboard shows “Not indexed” and reindex succeeds.
+- Tests: `MetadataResilienceTest` covers metadata deletion/recreation + reindex under `test` profile.

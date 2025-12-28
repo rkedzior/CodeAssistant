@@ -51,7 +51,16 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
       return Optional.empty();
     }
 
-    VectorStoreFile file = vectorStorePort.readFile(fileId.get());
+    VectorStoreFile file;
+    try {
+      file = vectorStorePort.readFile(fileId.get());
+    } catch (IllegalStateException e) {
+      String message = e.getMessage();
+      if (message != null && message.startsWith("Vector store file not found:")) {
+        return Optional.empty();
+      }
+      throw e;
+    }
     try {
       ProjectMetadata metadata = objectMapper.readValue(file.content(), ProjectMetadata.class);
       return Optional.of(new ProjectMetadataState(file.fileId(), metadata, file.attributes()));
