@@ -1,6 +1,7 @@
 package app.platform.adapters.vectorstore;
 
 import app.core.vectorstore.VectorStoreFile;
+import app.core.vectorstore.VectorStoreFileSummary;
 import app.core.vectorstore.VectorStorePort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,9 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
@@ -95,6 +99,36 @@ public class FileSystemVectorStoreAdapter implements VectorStorePort {
     }
   }
 
+  @Override
+  public List<VectorStoreFileSummary> listFiles() {
+    if (!Files.exists(root)) {
+      return List.of();
+    }
+
+    List<VectorStoreFileSummary> results = new ArrayList<>();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(root, "*.attrs.json")) {
+      for (Path attrsPath : stream) {
+        String attrsFileName = attrsPath.getFileName().toString();
+        String fileId = attrsFileName.substring(0, attrsFileName.length() - ".attrs.json".length());
+        validateFileId(fileId);
+
+        Path contentPath = root.resolve(fileId);
+        if (!Files.exists(contentPath)) {
+          continue;
+        }
+
+        Map<String, String> attributes = readAttributes(attrsPath);
+        long sizeBytes = Files.size(contentPath);
+        results.add(new VectorStoreFileSummary(fileId, sizeBytes, attributes));
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to list vector store files at " + root, e);
+    }
+
+    results.sort(Comparator.comparing(VectorStoreFileSummary::fileId));
+    return results;
+  }
+
   private Map<String, String> readAttributes(Path attrsPath) throws IOException {
     return objectMapper.readValue(Files.readAllBytes(attrsPath), STRING_MAP);
   }
@@ -115,4 +149,3 @@ public class FileSystemVectorStoreAdapter implements VectorStorePort {
     }
   }
 }
-

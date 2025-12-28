@@ -37,6 +37,21 @@ public class LocalGitAdapter implements GitPort {
     return parseNullSeparatedList(stdout);
   }
 
+  @Override
+  public byte[] readWorkingTreeFile(String repoRelativePath) {
+    if (repoRelativePath == null || repoRelativePath.isBlank()) {
+      throw new IllegalArgumentException("repoRelativePath must be non-blank.");
+    }
+
+    Path repoPath = resolveLocalRepoPath();
+    Path filePath = repoPath.resolve(repoRelativePath);
+    try {
+      return Files.readAllBytes(filePath);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to read repo file: " + repoRelativePath, e);
+    }
+  }
+
   private Path resolveLocalRepoPath() {
     ProjectConfig config =
         projectConfigPort

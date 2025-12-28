@@ -1,5 +1,6 @@
 package app.core.vectorstore;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -9,5 +10,6 @@ public interface VectorStorePort {
   String createFile(String fileId, byte[] content, Map<String, String> attributes);
 
   VectorStoreFile readFile(String fileId);
-}
 
+  List<VectorStoreFileSummary> listFiles();
+}

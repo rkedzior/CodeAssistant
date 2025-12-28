@@ -6,4 +6,6 @@ public interface GitPort {
   String getHeadCommit();
 
   List<String> listTrackedFiles();
+
+  byte[] readWorkingTreeFile(String repoRelativePath);
 }

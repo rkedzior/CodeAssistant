@@ -1,7 +1,10 @@
 package app.platform.adapters.vectorstore;
 
 import app.core.vectorstore.VectorStoreFile;
+import app.core.vectorstore.VectorStoreFileSummary;
 import app.core.vectorstore.VectorStorePort;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +39,14 @@ public class InMemoryVectorStoreAdapter implements VectorStorePort {
     return file;
   }
 
+  @Override
+  public List<VectorStoreFileSummary> listFiles() {
+    return files.values().stream()
+        .map(file -> new VectorStoreFileSummary(file.fileId(), file.content().length, file.attributes()))
+        .sorted(Comparator.comparing(VectorStoreFileSummary::fileId))
+        .toList();
+  }
+
   private static boolean matchesRequired(
       Map<String, String> attributes, Map<String, String> requiredAttributes) {
     for (Map.Entry<String, String> entry : requiredAttributes.entrySet()) {
@@ -46,4 +57,3 @@ public class InMemoryVectorStoreAdapter implements VectorStorePort {
     return true;
   }
 }
-

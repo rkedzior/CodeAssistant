@@ -24,3 +24,8 @@ Observations:
 
 - BL-0202 complete: tracked-file enumeration via `git ls-files`; API `GET /api/index/tracked-files` added.
 - Tests: `TrackedFilesApiTest` verifies ignored/untracked file is excluded.
+
+- BL-0203 complete: initial index uploads classified tracked files to vector store with attributes (`type`, `subtype`, `path`); API `GET /api/vectorstore/files` added.
+- Tests: extended `IndexingFlowTest` validates uploaded code (`business_logic`) and spec (`documentation/spec`) + `/api/metadata` lastIndexedCommit.
+Observations:
+- Vector-store fileId is `repo_<sha256(path)>` to keep IDs filesystem-safe; original path preserved in attributes.

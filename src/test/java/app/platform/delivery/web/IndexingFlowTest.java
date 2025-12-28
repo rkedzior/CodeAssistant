@@ -1,6 +1,7 @@
 package app.platform.delivery.web;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -81,6 +82,40 @@ class IndexingFlowTest {
         .andExpect(content().string(not(containsString("Not indexed"))));
   }
 
+  @Test
+  void initialIndexJob_uploadsCodeAndSpecFilesToVectorStore_withExpectedAttributes() throws Exception {
+    Path repoDir = tempDir.resolve("repo");
+    Files.createDirectories(repoDir);
+    initTempGitRepoWithCodeAndSpec(repoDir);
+    String expectedHead = runGit(repoDir, "rev-parse", "HEAD").trim();
+
+    mockMvc
+        .perform(
+            post("/setup")
+                .param("mode", "LOCAL")
+                .param("localRepoPath", repoDir.toString())
+                .param("openaiApiKey", "sk-test"))
+        .andExpect(status().is3xxRedirection());
+
+    mockMvc.perform(post("/api/index/initial")).andExpect(status().isAccepted());
+    pollUntilFinished(new HashSet<>());
+
+    mockMvc
+        .perform(get("/api/vectorstore/files"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$..attributes.path", hasItem("src/main/java/app/core/Foo.java")))
+        .andExpect(jsonPath("$..attributes.type", hasItem("code")))
+        .andExpect(jsonPath("$..attributes.subtype", hasItem("business_logic")))
+        .andExpect(jsonPath("$..attributes.path", hasItem("spec/US_9999_Test.md")))
+        .andExpect(jsonPath("$..attributes.type", hasItem("documentation")))
+        .andExpect(jsonPath("$..attributes.subtype", hasItem("spec")));
+
+    mockMvc
+        .perform(get("/api/metadata"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(expectedHead));
+  }
+
   private IndexJobState pollUntilFinished(Set<String> observedProgressWhileRunning) throws Exception {
     long deadlineNanos = System.nanoTime() + POLL_TIMEOUT.toNanos();
     while (System.nanoTime() < deadlineNanos) {
@@ -106,6 +141,24 @@ class IndexingFlowTest {
     runGit(repoDir, "config", "user.email", "test@example.com");
     runGit(repoDir, "config", "user.name", "Test User");
     Files.writeString(repoDir.resolve("README.md"), "hello", StandardCharsets.UTF_8);
+    runGit(repoDir, "add", ".");
+    runGit(repoDir, "commit", "-m", "initial");
+  }
+
+  private static void initTempGitRepoWithCodeAndSpec(Path repoDir) throws Exception {
+    runGit(repoDir, "init");
+    runGit(repoDir, "config", "user.email", "test@example.com");
+    runGit(repoDir, "config", "user.name", "Test User");
+
+    Files.createDirectories(repoDir.resolve("src/main/java/app/core"));
+    Files.writeString(
+        repoDir.resolve("src/main/java/app/core/Foo.java"),
+        "package app.core;\n\npublic class Foo {}\n",
+        StandardCharsets.UTF_8);
+
+    Files.createDirectories(repoDir.resolve("spec"));
+    Files.writeString(repoDir.resolve("spec/US_9999_Test.md"), "# Spec\n", StandardCharsets.UTF_8);
+
     runGit(repoDir, "add", ".");
     runGit(repoDir, "commit", "-m", "initial");
   }
@@ -152,4 +205,3 @@ class IndexingFlowTest {
     }
   }
 }
-

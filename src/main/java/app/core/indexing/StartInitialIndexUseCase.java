@@ -4,9 +4,16 @@ import app.core.git.GitPort;
 import app.core.projectstate.ProjectMetadata;
 import app.core.projectstate.ProjectMetadataState;
 import app.core.projectstate.ProjectStatePort;
+import app.core.vectorstore.VectorStorePort;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.core.task.TaskExecutor;
@@ -16,15 +23,23 @@ public class StartInitialIndexUseCase {
 
   private final GitPort gitPort;
   private final ProjectStatePort projectStatePort;
+  private final VectorStorePort vectorStorePort;
+  private final TrackedFileClassifier trackedFileClassifier;
   private final TaskExecutor taskExecutor;
 
   private final AtomicReference<IndexJobState> state = new AtomicReference<>(IndexJobState.idle());
   private final AtomicReference<CompletableFuture<Void>> running = new AtomicReference<>();
 
   public StartInitialIndexUseCase(
-      GitPort gitPort, ProjectStatePort projectStatePort, TaskExecutor taskExecutor) {
+      GitPort gitPort,
+      ProjectStatePort projectStatePort,
+      VectorStorePort vectorStorePort,
+      TrackedFileClassifier trackedFileClassifier,
+      TaskExecutor taskExecutor) {
     this.gitPort = gitPort;
     this.projectStatePort = projectStatePort;
+    this.vectorStorePort = vectorStorePort;
+    this.trackedFileClassifier = trackedFileClassifier;
     this.taskExecutor = taskExecutor;
   }
 
@@ -56,6 +71,30 @@ public class StartInitialIndexUseCase {
             List<String> trackedFiles = gitPort.listTrackedFiles();
 
             updateProgress("Found " + trackedFiles.size() + " tracked files…");
+            sleep(PROGRESS_STEP_DELAY);
+
+            updateProgress("Uploading tracked files…");
+            sleep(PROGRESS_STEP_DELAY);
+
+            int uploadedCount = 0;
+            int skippedCount = 0;
+            for (int i = 0; i < trackedFiles.size(); i++) {
+              String repoRelativePath = trackedFiles.get(i);
+              Optional<Map<String, String>> attributes = trackedFileClassifier.classify(repoRelativePath);
+              if (attributes.isEmpty()) {
+                skippedCount++;
+                continue;
+              }
+
+              updateProgress("Uploading " + (uploadedCount + 1) + " / " + trackedFiles.size() + "…");
+              byte[] content = gitPort.readWorkingTreeFile(repoRelativePath);
+              String fileId = computeFileId(attributes.get().get("path"));
+              vectorStorePort.createFile(fileId, content, attributes.get());
+              uploadedCount++;
+            }
+
+            updateProgress(
+                "Uploaded " + uploadedCount + " file(s); skipped " + skippedCount + " file(s)…");
             sleep(PROGRESS_STEP_DELAY);
 
             updateProgress("Updating metadata…");
@@ -108,5 +147,16 @@ public class StartInitialIndexUseCase {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
+  }
+
+  private static String computeFileId(String repoRelativePath) {
+    String toHash = repoRelativePath == null ? "" : repoRelativePath;
+    byte[] digest;
+    try {
+      digest = MessageDigest.getInstance("SHA-256").digest(toHash.getBytes(StandardCharsets.UTF_8));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("Missing SHA-256 MessageDigest.", e);
+    }
+    return "repo_" + HexFormat.of().formatHex(digest);
   }
 }
