@@ -186,7 +186,9 @@
 
           <div th:if="${mode == 'text'}">
             <div th:each="file : ${textResults}" class="file">
-              <h3 th:text="${file.path}">path</h3>
+              <h3>
+                <a th:href="@{/file(path=${file.path})}" th:text="${file.path}">path</a>
+              </h3>
               <div th:each="m : ${file.matches}" class="match">
                 <span th:text="${m.lineNumber}">1</span><span>: </span><span th:text="${m.lineText}">line</span>
               </div>
@@ -196,7 +198,7 @@
           <div th:if="${mode == 'semantic'}">
             <div th:each="r : ${semanticResults}" class="file">
               <h3>
-                <span th:text="${r.path}">path</span>
+                <a th:href="@{/file(path=${r.path})}" th:text="${r.path}">path</a>
                 <span class="muted" th:text="${'score ' + #numbers.formatDecimal(r.score, 1, 4)}">score</span>
               </h3>
               <div class="match" th:if="${r.preview != null}" th:text="${r.preview}">preview</div>

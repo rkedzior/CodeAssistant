@@ -43,3 +43,6 @@ Observations:
 
 - BL-0402 complete: semantic search supports attribute filters `type`/`subtype` (UI controls + API query params) to narrow results (e.g., `documentation/spec`).
 - Tests: extended `SemanticSearchApiTest` validates filtered API/HTML returns only `/spec` Markdown when `type=documentation&subtype=spec`.
+
+- BL-0501 complete: file viewer added (`GET /file?path=...`) showing file content plus current indexed commit; search results link to the viewer.
+- Tests: `FileViewerFlowTest` verifies `/file` renders content + commit and `/search` includes `/file?path=...` link.
