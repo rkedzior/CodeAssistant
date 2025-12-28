@@ -94,3 +94,6 @@ Observations:
 
 - BL-1003 complete: MCP `write_observation` tool implemented via API `POST /api/mcp/write_observation` and a test action form on `/mcp`; saved observations are visible on `/observations`.
 - Tests: `McpWriteObservationFlowTest` covers API and MCP Status form flow under `test` profile.
+
+- BL-1101 complete: end-to-end happy path verified via a single integration test covering configure → index → text search → analysis → observation → spec propose/apply.
+- Tests: `EndToEndHappyPathTest` covers the combined MVP workflow under `test` profile.
