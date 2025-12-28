@@ -54,3 +54,6 @@ Observations:
 
 - BL-0602 complete: analysis errors surfaced consistently (UI banner + API 400) and retry supported via fault injection (`codeassistant.llm.failOnce=true`).
 - Tests: `AnalysisRetryFlowTest` validates first-call failure and second-call success (API + UI).
+
+- BL-0701 complete: Observations added (UI `/observations` + API `POST/GET /api/observations`) stored in vector store as `type=observation` with `subtype`.
+- Tests: `ObservationsFlowTest` covers API create/list + UI save/list under `test` profile.

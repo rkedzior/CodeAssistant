@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Observations</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 2rem;
+      }
+      .card {
+        max-width: 720px;
+        padding: 1.5rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .row {
+        margin: 0.75rem 0;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      .actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 6px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      a {
+        color: #1f6feb;
+        text-decoration: none;
+      }
+      .notice {
+        background: #e7f3ff;
+        border: 1px solid #b6d8ff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+      .notice.error {
+        background: #fee2e2;
+        border-color: #fecaca;
+      }
+      .list {
+        margin-top: 1.25rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      .item {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 0.75rem;
+        background: #fafafa;
+      }
+      .meta {
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+        color: #555;
+        font-size: 0.9rem;
+      }
+      .text {
+        margin-top: 0.5rem;
+        white-space: pre-wrap;
+      }
+      .muted {
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Observations</h1>
+
+      <div class="notice" th:if="${successMessage}" th:text="${successMessage}"></div>
+      <div class="notice error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+      <form th:action="@{/observations}" method="post">
+        <div class="row">
+          <label for="subtype">Subtype</label>
+          <select id="subtype" name="subtype">
+            <option
+              th:each="s : ${subtypes}"
+              th:value="${s.key()}"
+              th:text="${s.key()}"
+              th:selected="${s.key() == subtype}"
+            ></option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="text">Observation</label>
+          <textarea id="text" name="text" rows="6" th:text="${text}"></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Save observation</button>
+          <a th:href="@{/}">Back to Dashboard</a>
+        </div>
+      </form>
+
+      <div class="list">
+        <div class="muted" th:if="${#lists.isEmpty(observations)}">No observations yet.</div>
+
+        <div class="item" th:each="obs : ${observations}">
+          <div class="meta">
+            <strong th:text="${obs.subtype}">note</strong>
+            <span th:if="${obs.createdAt}" th:text="${#temporals.format(obs.createdAt, 'yyyy-MM-dd HH:mm:ss')}">
+              2025-01-01 12:00:00
+            </span>
+            <span class="muted" th:text="${obs.id}">obs_...</span>
+          </div>
+          <div class="text" th:text="${obs.text}">Text</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+
