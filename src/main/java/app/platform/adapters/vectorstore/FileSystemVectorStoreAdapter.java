@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!test")
+@Profile("!test & !e2etest")
 public class FileSystemVectorStoreAdapter implements VectorStorePort {
   private static final TypeReference<Map<String, String>> STRING_MAP =
       new TypeReference<>() {};

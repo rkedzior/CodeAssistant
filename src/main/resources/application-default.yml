@@ -1,0 +1,5 @@
+codeassistant:
+  config:
+    path: ./.codeassistant/config.json
+  vectorstore:
+    path: ./.codeassistant/vectorstore

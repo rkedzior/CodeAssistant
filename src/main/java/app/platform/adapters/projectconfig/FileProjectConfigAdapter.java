@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!test")
+@Profile("!test & !e2etest")
 public class FileProjectConfigAdapter implements ProjectConfigPort {
   private final ObjectMapper objectMapper;
   private final Path configFile;
@@ -54,4 +54,3 @@ public class FileProjectConfigAdapter implements ProjectConfigPort {
     }
   }
 }
-

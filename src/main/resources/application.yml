@@ -1,7 +1,5 @@
 spring:
   application:
     name: codeassistant
-
-codeassistant:
-  config:
-    path: ./.codeassistant/config.json
+  profiles:
+    default: default

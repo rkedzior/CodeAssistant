@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile({"test", "e2etest"})
 public class InMemoryProjectConfigAdapter implements ProjectConfigPort {
   private final AtomicReference<ProjectConfig> config = new AtomicReference<>();
 
@@ -22,4 +22,3 @@ public class InMemoryProjectConfigAdapter implements ProjectConfigPort {
     this.config.set(config);
   }
 }
-
