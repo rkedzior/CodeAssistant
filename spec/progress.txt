@@ -88,3 +88,6 @@ Observations:
 
 - BL-1001 complete: MCP Status page (`/mcp`) added with tool list and server status; API `GET /api/mcp/status` returns `{running, tools}` including `search` and `write_observation`.
 - Tests: `McpStatusPageTest` + `McpStatusApiTest` cover UI/API under `test` profile.
+
+- BL-1002 complete: MCP search tool available via `POST /api/mcp/search` supporting `mode=text|semantic` and reusing existing search ports.
+- Tests: `McpSearchApiTest` covers MCP text and semantic search modes under `test` profile.
