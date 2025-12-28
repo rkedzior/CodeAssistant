@@ -85,3 +85,6 @@ Observations:
 
 - BL-0902 complete: full reload indexing to a target commit hash via UI “Full reload” and API `POST /api/index/reload`; metadata `lastIndexedCommit` updates to target commit on success.
 - Tests: `ReloadIndexFlowTest` covers reload A→X and `/index` reload control under `test` profile.
+
+- BL-1001 complete: MCP Status page (`/mcp`) added with tool list and server status; API `GET /api/mcp/status` returns `{running, tools}` including `search` and `write_observation`.
+- Tests: `McpStatusPageTest` + `McpStatusApiTest` cover UI/API under `test` profile.
