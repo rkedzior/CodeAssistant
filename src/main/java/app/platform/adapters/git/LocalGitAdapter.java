@@ -5,6 +5,7 @@ import app.core.projectconfig.ProjectConfig;
 import app.core.projectconfig.ProjectConfigPort;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,13 +28,13 @@ public class LocalGitAdapter implements GitPort {
   @Override
   public String getHeadCommit() {
     Path repoPath = resolveLocalRepoPath();
-    return runGit(repoPath, DEFAULT_TIMEOUT, "rev-parse", "HEAD").trim();
+    return runGitText(repoPath, DEFAULT_TIMEOUT, "rev-parse", "HEAD").trim();
   }
 
   @Override
   public List<String> listTrackedFiles() {
     Path repoPath = resolveLocalRepoPath();
-    String stdout = runGit(repoPath, DEFAULT_TIMEOUT, "ls-files", "-z");
+    String stdout = runGitText(repoPath, DEFAULT_TIMEOUT, "ls-files", "-z");
     return parseNullSeparatedList(stdout);
   }
 
@@ -50,6 +51,31 @@ public class LocalGitAdapter implements GitPort {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to read repo file: " + repoRelativePath, e);
     }
+  }
+
+  @Override
+  public List<String> listTrackedFilesAtCommit(String commit) {
+    if (commit == null || commit.isBlank()) {
+      throw new IllegalArgumentException("commit must be non-blank.");
+    }
+
+    Path repoPath = resolveLocalRepoPath();
+    String stdout =
+        runGitText(repoPath, DEFAULT_TIMEOUT, "ls-tree", "-r", "-z", "--name-only", commit.trim());
+    return parseNullSeparatedList(stdout);
+  }
+
+  @Override
+  public byte[] readFileAtCommit(String commit, String repoRelativePath) {
+    if (commit == null || commit.isBlank()) {
+      throw new IllegalArgumentException("commit must be non-blank.");
+    }
+    if (repoRelativePath == null || repoRelativePath.isBlank()) {
+      throw new IllegalArgumentException("repoRelativePath must be non-blank.");
+    }
+
+    Path repoPath = resolveLocalRepoPath();
+    return runGitBytes(repoPath, DEFAULT_TIMEOUT, "show", commit.trim() + ":" + repoRelativePath);
   }
 
   private Path resolveLocalRepoPath() {
@@ -84,7 +110,17 @@ public class LocalGitAdapter implements GitPort {
     return results;
   }
 
-  private static String runGit(Path repoPath, Duration timeout, String... args) {
+  private static String runGitText(Path repoPath, Duration timeout, String... args) {
+    GitOutput output = runGitRaw(repoPath, timeout, args);
+    return new String(output.stdout(), StandardCharsets.UTF_8);
+  }
+
+  private static byte[] runGitBytes(Path repoPath, Duration timeout, String... args) {
+    GitOutput output = runGitRaw(repoPath, timeout, args);
+    return output.stdout();
+  }
+
+  private static GitOutput runGitRaw(Path repoPath, Duration timeout, String... args) {
     List<String> command = new ArrayList<>();
     command.add("git");
     for (String arg : args) {
@@ -97,6 +133,16 @@ public class LocalGitAdapter implements GitPort {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to start git process.", e);
     }
+
+    StreamReader stdoutReader = new StreamReader(process.getInputStream());
+    StreamReader stderrReader = new StreamReader(process.getErrorStream());
+
+    Thread stdoutThread = new Thread(stdoutReader, "git-stdout-reader");
+    Thread stderrThread = new Thread(stderrReader, "git-stderr-reader");
+    stdoutThread.setDaemon(true);
+    stderrThread.setDaemon(true);
+    stdoutThread.start();
+    stderrThread.start();
 
     boolean finished;
     try {
@@ -111,25 +157,60 @@ public class LocalGitAdapter implements GitPort {
       throw new IllegalStateException("Timed out while running git in " + repoPath);
     }
 
-    String stdout = readAll(process.getInputStream());
-    String stderr = readAll(process.getErrorStream());
+    try {
+      stdoutThread.join();
+      stderrThread.join();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while reading git output.", e);
+    }
+
+    stdoutReader.throwIfFailed();
+    stderrReader.throwIfFailed();
+
+    byte[] stdout = stdoutReader.bytes();
+    byte[] stderr = stderrReader.bytes();
 
     if (process.exitValue() != 0) {
+      String stderrText = new String(stderr, StandardCharsets.UTF_8);
       String message =
-          "git failed (exit=" + process.exitValue() + ") in " + repoPath + ": " + stderr.trim();
+          "git failed (exit=" + process.exitValue() + ") in " + repoPath + ": " + stderrText.trim();
       throw new IllegalStateException(message);
     }
 
-    return stdout;
+    return new GitOutput(stdout, stderr);
   }
 
-  private static String readAll(java.io.InputStream inputStream) {
-    try (inputStream) {
-      ByteArrayOutputStream output = new ByteArrayOutputStream();
-      inputStream.transferTo(output);
-      return output.toString(StandardCharsets.UTF_8);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to read process output.", e);
+  private record GitOutput(byte[] stdout, byte[] stderr) {}
+
+  private static final class StreamReader implements Runnable {
+    private final java.io.InputStream inputStream;
+    private volatile byte[] bytes;
+    private volatile RuntimeException failure;
+
+    private StreamReader(java.io.InputStream inputStream) {
+      this.inputStream = inputStream;
+    }
+
+    @Override
+    public void run() {
+      try (inputStream) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        inputStream.transferTo(output);
+        bytes = output.toByteArray();
+      } catch (IOException e) {
+        failure = new UncheckedIOException(e);
+      }
+    }
+
+    public byte[] bytes() {
+      return bytes == null ? new byte[0] : bytes;
+    }
+
+    public void throwIfFailed() {
+      if (failure != null) {
+        throw failure;
+      }
     }
   }
 }

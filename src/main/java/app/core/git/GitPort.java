@@ -8,4 +8,8 @@ public interface GitPort {
   List<String> listTrackedFiles();
 
   byte[] readWorkingTreeFile(String repoRelativePath);
+
+  List<String> listTrackedFilesAtCommit(String commit);
+
+  byte[] readFileAtCommit(String commit, String repoRelativePath);
 }

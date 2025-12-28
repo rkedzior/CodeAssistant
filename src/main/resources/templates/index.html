@@ -42,6 +42,13 @@
       button.danger {
         background: #b91c1c;
       }
+      input[type="text"] {
+        padding: 0.55rem 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        flex: 1;
+        min-width: 240px;
+      }
       a {
         color: #1f6feb;
         text-decoration: none;
@@ -87,6 +94,17 @@
         <a th:href="@{/}">Back to Dashboard</a>
       </div>
 
+      <div class="actions" style="margin-top: 1rem">
+        <input
+          id="commitInput"
+          type="text"
+          th:disabled="${!configured}"
+          placeholder="Commit hash (e.g. abc1234)"
+          autocomplete="off"
+        />
+        <button id="updateBtn" class="danger" th:disabled="${!configured}">Update index to commit</button>
+      </div>
+
       <div id="confirmBox" class="status" style="display: none">
         <div>
           Confirm: run the initial index using the repository <strong>HEAD</strong> commit?
@@ -96,6 +114,17 @@
           <button id="cancelBtn" class="secondary">Cancel</button>
         </div>
       </div>
+
+      <div id="confirmUpdateBox" class="status" style="display: none">
+        <div>
+          Confirm: update the index from <strong id="updateFromCommit">Unknown</strong> to
+          <strong id="updateToCommit">?</strong>?
+        </div>
+        <div class="actions">
+          <button id="confirmUpdateBtn" class="danger">Confirm and start</button>
+          <button id="cancelUpdateBtn" class="secondary">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -103,6 +132,14 @@
       const confirmBox = document.getElementById("confirmBox");
       const confirmBtn = document.getElementById("confirmBtn");
       const cancelBtn = document.getElementById("cancelBtn");
+
+      const commitInput = document.getElementById("commitInput");
+      const updateBtn = document.getElementById("updateBtn");
+      const confirmUpdateBox = document.getElementById("confirmUpdateBox");
+      const confirmUpdateBtn = document.getElementById("confirmUpdateBtn");
+      const cancelUpdateBtn = document.getElementById("cancelUpdateBtn");
+      const updateFromCommit = document.getElementById("updateFromCommit");
+      const updateToCommit = document.getElementById("updateToCommit");
 
       const jobStatus = document.getElementById("jobStatus");
       const jobProgress = document.getElementById("jobProgress");
@@ -138,12 +175,48 @@
 
       runBtn &&
         runBtn.addEventListener("click", () => {
+          confirmUpdateBox.style.display = "none";
           confirmBox.style.display = "block";
         });
 
       cancelBtn.addEventListener("click", () => {
         confirmBox.style.display = "none";
       });
+
+      updateBtn &&
+        updateBtn.addEventListener("click", async () => {
+          const commit = (commitInput && commitInput.value ? commitInput.value : "").trim();
+          if (!commit) {
+            alert("Enter a target commit hash first.");
+            return;
+          }
+
+          confirmBox.style.display = "none";
+          confirmUpdateBox.style.display = "block";
+          updateToCommit.textContent = commit;
+          updateFromCommit.textContent = "Unknown";
+
+          try {
+            const res = await fetch("/api/metadata");
+            if (res.ok) {
+              const metadataState = await res.json();
+              const lastIndexedCommit =
+                metadataState &&
+                metadataState.metadata &&
+                metadataState.metadata.lastIndexedCommit
+                  ? String(metadataState.metadata.lastIndexedCommit).trim()
+                  : "";
+              updateFromCommit.textContent = lastIndexedCommit ? lastIndexedCommit : "Not indexed";
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+
+      cancelUpdateBtn &&
+        cancelUpdateBtn.addEventListener("click", () => {
+          confirmUpdateBox.style.display = "none";
+        });
 
       confirmBtn.addEventListener("click", async () => {
         confirmBox.style.display = "none";
@@ -157,10 +230,27 @@
         await poll();
       });
 
+      confirmUpdateBtn &&
+        confirmUpdateBtn.addEventListener("click", async () => {
+          confirmUpdateBox.style.display = "none";
+          const commit = (commitInput && commitInput.value ? commitInput.value : "").trim();
+          const res = await fetch("/api/index/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ commit }),
+          });
+          const state = await res.json();
+          setJobState(state);
+
+          if (!pollTimer) {
+            pollTimer = setInterval(poll, 500);
+          }
+          await poll();
+        });
+
       if (jobStatus.textContent === "RUNNING" && !pollTimer) {
         pollTimer = setInterval(poll, 500);
       }
     </script>
   </body>
 </html>
-

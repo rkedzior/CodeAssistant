@@ -77,3 +77,8 @@ Observations:
 - Tests: `SpecApplyUpdatesFlowTest` covers API apply (writes file) and UI apply (success flash + redirect) under `test` profile.
 Observations:
 - Apply recomputes deterministic proposals and writes only selected paths (no server-side proposal persistence).
+
+- BL-0901 complete: indexing can be updated to a target commit hash via UI (commit input + confirm) and API `POST /api/index/update`; metadata `lastIndexedCommit` updates to target commit on success.
+- Tests: `UpdateIndexFlowTest` covers update A→X via temp git repo and verifies `/api/metadata` lastIndexedCommit == X under `test` profile.
+Observations:
+- Git adapter reads file content at specific commits via `git show`/`git ls-tree` (no working-tree checkout required for update job).
