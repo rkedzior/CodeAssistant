@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 2rem;
+      }
+      .card {
+        max-width: 900px;
+        padding: 1.5rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .row {
+        margin: 0.75rem 0;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+      .actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.6rem 1rem;
+        border: 0;
+        border-radius: 6px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #9db7e7;
+        cursor: not-allowed;
+      }
+      a {
+        color: #1f6feb;
+        text-decoration: none;
+      }
+      .notice {
+        background: #e7f3ff;
+        border: 1px solid #b6d8ff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+      }
+      .results {
+        margin-top: 1.25rem;
+      }
+      .file {
+        margin: 1rem 0;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+      }
+      .file h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+      }
+      .match {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+          monospace;
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+        white-space: pre-wrap;
+      }
+      .muted {
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Search</h1>
+
+      <div class="notice" th:if="${!configured}">
+        <div>Project is not configured yet.</div>
+        <div class="muted">Configure the project before searching.</div>
+      </div>
+
+      <form th:action="@{/search}" method="get">
+        <div class="row">
+          <label for="query">Text search (exact)</label>
+          <input id="query" type="text" name="query" th:value="${query}" placeholder="e.g. MyClass" />
+        </div>
+        <div class="actions">
+          <button type="submit" th:disabled="${!configured}">Search</button>
+          <a th:href="@{/}">Back to Dashboard</a>
+        </div>
+      </form>
+
+      <div class="results">
+        <div th:if="${query != null and !query.isBlank()}">
+          <div class="muted" th:if="${#lists.isEmpty(results)}">No matches.</div>
+
+          <div th:each="file : ${results}" class="file">
+            <h3 th:text="${file.path}">path</h3>
+            <div th:each="m : ${file.matches}" class="match">
+              <span th:text="${m.lineNumber}">1</span><span>: </span><span th:text="${m.lineText}">line</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

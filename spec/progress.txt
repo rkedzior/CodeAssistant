@@ -29,3 +29,6 @@ Observations:
 - Tests: extended `IndexingFlowTest` validates uploaded code (`business_logic`) and spec (`documentation/spec`) + `/api/metadata` lastIndexedCommit.
 Observations:
 - Vector-store fileId is `repo_<sha256(path)>` to keep IDs filesystem-safe; original path preserved in attributes.
+
+- BL-0301 complete: exact text search via `TextSearchPort` + `RipgrepTextSearchAdapter` (`rg`-first, Java fallback); UI `/search`; API `GET /api/search/text`.
+- Tests: `TextSearchApiTest` verifies tracked match returned and gitignored match excluded (forces Java fallback in `test` profile).
