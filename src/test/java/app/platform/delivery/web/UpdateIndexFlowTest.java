@@ -75,7 +75,7 @@ class UpdateIndexFlowTest {
     mockMvc
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitA()));
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").value(commits.commitA()));
 
     List<VectorStoreFileSummary> initialFiles = listVectorStoreFiles();
     assertTrue(containsPath(initialFiles, "spec/old.md"), "Expected spec/old.md to be indexed");
@@ -96,7 +96,7 @@ class UpdateIndexFlowTest {
     mockMvc
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitX()));
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").value(commits.commitX()));
 
     List<VectorStoreFileSummary> updatedFiles = listVectorStoreFiles();
     assertFalse(containsPath(updatedFiles, "spec/old.md"), "Expected spec/old.md to be removed");

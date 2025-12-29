@@ -73,10 +73,7 @@ public class StartInitialIndexUseCase {
 
           ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
           ProjectMetadata updated =
-              new ProjectMetadata(
-                  existingMetadata.metadata().schemaVersion(),
-                  headCommit,
-                  uploadResult.pathToFileIds());
+              existingMetadata.metadata().withIndexingUpdate(headCommit, uploadResult.pathToFileIds());
           projectStatePort.saveMetadata(updated);
         });
   }
@@ -135,10 +132,7 @@ public class StartInitialIndexUseCase {
           sleep(PROGRESS_STEP_DELAY);
 
           ProjectMetadata updated =
-              new ProjectMetadata(
-                  existingMetadata.metadata().schemaVersion(),
-                  trimmedTarget,
-                  Map.copyOf(pathToFileIds));
+              existingMetadata.metadata().withIndexingUpdate(trimmedTarget, Map.copyOf(pathToFileIds));
           projectStatePort.saveMetadata(updated);
         });
   }
@@ -307,10 +301,7 @@ public class StartInitialIndexUseCase {
     sleep(PROGRESS_STEP_DELAY);
 
     ProjectMetadata updated =
-        new ProjectMetadata(
-            existingMetadata.metadata().schemaVersion(),
-            targetCommit,
-            uploadResult.pathToFileIds());
+        existingMetadata.metadata().withIndexingUpdate(targetCommit, uploadResult.pathToFileIds());
     projectStatePort.saveMetadata(updated);
   }
 

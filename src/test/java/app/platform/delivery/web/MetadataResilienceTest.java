@@ -69,7 +69,7 @@ class MetadataResilienceTest {
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.fileId").value("metadata.json"))
-        .andExpect(jsonPath("$.metadata.schemaVersion").value(1));
+        .andExpect(jsonPath("$.metadata.schemaVersion").value(2));
 
     ConcurrentHashMap<String, VectorStoreFile> files = getInMemoryVectorStoreFiles();
     assertTrue(
@@ -188,4 +188,3 @@ class MetadataResilienceTest {
     }
   }
 }
-

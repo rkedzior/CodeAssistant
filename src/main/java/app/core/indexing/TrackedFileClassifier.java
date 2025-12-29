@@ -1,6 +1,9 @@
 package app.core.indexing;
 
+import app.core.projectstate.ProjectMetadata;
+import app.core.projectstate.ProjectStatePort;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -8,39 +11,27 @@ import java.util.Set;
 public class TrackedFileClassifier {
   private static final Set<String> KNOWN_CODE_EXTENSIONS = knownCodeExtensions();
 
+  private final ProjectStatePort projectStatePort;
+
+  public TrackedFileClassifier(ProjectStatePort projectStatePort) {
+    this.projectStatePort = projectStatePort;
+  }
+
   public Optional<Map<String, String>> classify(String repoRelativePath) {
     if (repoRelativePath == null || repoRelativePath.isBlank()) {
       return Optional.empty();
     }
 
     String normalized = normalize(repoRelativePath);
-
-    if (isSpecMarkdown(normalized)) {
-      return Optional.of(Map.of("type", "documentation", "subtype", "spec", "path", normalized));
-    }
-
-    if (normalized.equals("README.md")) {
-      return Optional.of(Map.of("type", "documentation", "subtype", "readme", "path", normalized));
-    }
-
-    if (normalized.startsWith("src/main/java/app/platform/delivery/")) {
-      return Optional.of(Map.of("type", "code", "subtype", "ui", "path", normalized));
-    }
-
-    if (normalized.startsWith("src/main/java/app/core/")) {
-      return Optional.of(Map.of("type", "code", "subtype", "business_logic", "path", normalized));
-    }
-
-    if (normalized.startsWith("src/main/java/app/platform/config/")) {
-      return Optional.of(Map.of("type", "code", "subtype", "configuration", "path", normalized));
-    }
-
-    if (normalized.startsWith("src/main/java/app/platform/adapters/")) {
-      return Optional.of(Map.of("type", "code", "subtype", "infrastructure", "path", normalized));
-    }
-
-    if (normalized.startsWith("src/test/")) {
-      return Optional.of(Map.of("type", "code", "subtype", "test", "path", normalized));
+    for (ProjectMetadata.ClassificationRule rule : resolveRules()) {
+      if (rule == null) {
+        continue;
+      }
+      String prefix = normalize(rule.pathPrefix());
+      if (prefix != null && !prefix.isBlank() && normalized.startsWith(prefix)) {
+        return Optional.of(
+            Map.of("type", rule.type(), "subtype", rule.subtype(), "path", normalized));
+      }
     }
 
     if (isKnownCodeExtension(normalized)) {
@@ -50,14 +41,21 @@ public class TrackedFileClassifier {
     return Optional.empty();
   }
 
-  private static boolean isSpecMarkdown(String normalizedPath) {
-    return normalizedPath.startsWith("spec/") && normalizedPath.endsWith(".md");
+  private List<ProjectMetadata.ClassificationRule> resolveRules() {
+    ProjectMetadata metadata = projectStatePort.getOrCreateMetadata().metadata();
+    if (metadata == null) {
+      return ProjectMetadata.defaultClassificationRules();
+    }
+    return metadata.classificationRulesOrDefault();
   }
 
   private static String normalize(String repoRelativePath) {
+    if (repoRelativePath == null) {
+      return null;
+    }
     String normalized = repoRelativePath.replace('\\', '/');
     if (normalized.startsWith("./")) {
-      return normalized.substring(2);
+      normalized = normalized.substring(2);
     }
     return normalized;
   }

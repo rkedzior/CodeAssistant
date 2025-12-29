@@ -113,7 +113,7 @@ class IndexingFlowTest {
     mockMvc
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(expectedHead));
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").value(expectedHead));
   }
 
   private IndexJobState pollUntilFinished(Set<String> observedProgressWhileRunning) throws Exception {

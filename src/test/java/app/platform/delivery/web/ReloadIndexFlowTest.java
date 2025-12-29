@@ -71,7 +71,7 @@ class ReloadIndexFlowTest {
     mockMvc
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitA()));
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").value(commits.commitA()));
 
     mockMvc
         .perform(
@@ -89,7 +89,7 @@ class ReloadIndexFlowTest {
     mockMvc
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitX()));
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").value(commits.commitX()));
   }
 
   @Test
@@ -186,4 +186,3 @@ class ReloadIndexFlowTest {
     }
   }
 }
-

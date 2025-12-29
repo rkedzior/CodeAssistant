@@ -19,6 +19,10 @@ public class IndexingConfig {
       VectorStorePort vectorStorePort,
       @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor) {
     return new StartInitialIndexUseCase(
-        gitPort, projectStatePort, vectorStorePort, new TrackedFileClassifier(), taskExecutor);
+        gitPort,
+        projectStatePort,
+        vectorStorePort,
+        new TrackedFileClassifier(projectStatePort),
+        taskExecutor);
   }
 }

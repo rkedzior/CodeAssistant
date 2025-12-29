@@ -1,10 +1,14 @@
 package app.platform.adapters.projectstate;
 
+import app.core.projectconfig.ProjectConfig;
+import app.core.projectconfig.ProjectConfigPort;
 import app.core.projectstate.ProjectMetadata;
 import app.core.projectstate.ProjectMetadataState;
+import app.core.projectstate.ProjectMetadataV1;
 import app.core.projectstate.ProjectStatePort;
 import app.core.vectorstore.VectorStoreFile;
 import app.core.vectorstore.VectorStorePort;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,10 +26,15 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
 
   private final VectorStorePort vectorStorePort;
   private final ObjectMapper objectMapper;
+  private final ProjectConfigPort projectConfigPort;
 
-  public VectorStoreProjectStateAdapter(VectorStorePort vectorStorePort, ObjectMapper objectMapper) {
+  public VectorStoreProjectStateAdapter(
+      VectorStorePort vectorStorePort,
+      ObjectMapper objectMapper,
+      ProjectConfigPort projectConfigPort) {
     this.vectorStorePort = vectorStorePort;
     this.objectMapper = objectMapper;
+    this.projectConfigPort = projectConfigPort;
   }
 
   @Override
@@ -33,13 +42,15 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
     return readMetadata()
         .orElseGet(
             () -> {
-              ProjectMetadata metadata = ProjectMetadata.initial();
+              ProjectMetadata metadata =
+                  ProjectMetadata.initial(projectConfigPort.load().orElse(null));
               try {
                 String storedFileId =
                     vectorStorePort.createFile(
-                    METADATA_FILE_ID,
-                    objectMapper.writeValueAsString(metadata).getBytes(StandardCharsets.UTF_8),
-                    METADATA_ATTRIBUTES);
+                        METADATA_FILE_ID,
+                        objectMapper.writeValueAsString(metadata)
+                            .getBytes(StandardCharsets.UTF_8),
+                        METADATA_ATTRIBUTES);
                 return new ProjectMetadataState(storedFileId, metadata, METADATA_ATTRIBUTES);
               } catch (IOException e) {
                 throw new IllegalStateException("Failed to create " + METADATA_FILE_ID, e);
@@ -68,8 +79,11 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
       throw e;
     }
     try {
-      ProjectMetadata metadata = objectMapper.readValue(file.content(), ProjectMetadata.class);
-      return Optional.of(new ProjectMetadataState(file.fileId(), metadata, file.attributes()));
+      MetadataReadResult result = parseMetadata(file.content());
+      if (result.migrated()) {
+        return Optional.of(saveMetadata(result.metadata()));
+      }
+      return Optional.of(new ProjectMetadataState(file.fileId(), result.metadata(), file.attributes()));
     } catch (IOException e) {
       throw new IllegalStateException("Failed to read " + METADATA_FILE_ID, e);
     }
@@ -80,12 +94,26 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
     try {
       String storedFileId =
           vectorStorePort.createFile(
-          METADATA_FILE_ID,
-          objectMapper.writeValueAsBytes(metadata),
-          METADATA_ATTRIBUTES);
+              METADATA_FILE_ID,
+              objectMapper.writeValueAsBytes(metadata),
+              METADATA_ATTRIBUTES);
       return new ProjectMetadataState(storedFileId, metadata, METADATA_ATTRIBUTES);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to write " + METADATA_FILE_ID, e);
     }
   }
+
+  private MetadataReadResult parseMetadata(byte[] content) throws IOException {
+    JsonNode root = objectMapper.readTree(content);
+    int schemaVersion = root.path("schemaVersion").asInt(1);
+    ProjectConfig config = projectConfigPort.load().orElse(null);
+    if (schemaVersion < ProjectMetadata.CURRENT_SCHEMA_VERSION) {
+      ProjectMetadataV1 v1 = objectMapper.treeToValue(root, ProjectMetadataV1.class);
+      return new MetadataReadResult(ProjectMetadata.fromV1(v1, config), true);
+    }
+    ProjectMetadata metadata = objectMapper.treeToValue(root, ProjectMetadata.class);
+    return new MetadataReadResult(metadata, false);
+  }
+
+  private record MetadataReadResult(ProjectMetadata metadata, boolean migrated) {}
 }

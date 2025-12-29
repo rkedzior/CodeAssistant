@@ -153,6 +153,15 @@ Observations / short memory:
 - Update index deletes vector store files using stored file ids (fallback to
   listFiles path attributes); reload removes stale paths from metadata.
 
+- BL-1207 complete: metadata schema v2 stores project/openai/indexing settings,
+  classification rules, and path -> OpenAI file ids; v1 metadata migrates on
+  read; classifier now reads rules from metadata.
+- Tests: updated metadata/indexing tests; `.\mvnw.cmd clean test` passes
+  (62 tests).
+Observations / short memory:
+- Metadata creation now uses project config defaults (repo info + OpenAI model/
+  vector store id) and always includes default classification rules.
+
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
 - Spec/reference mismatch: `spec/classes_backend_ai.txt` referenced by BL-1204+ stories is not present in this repo (likely from another project). Provide/copy it or adjust stories to remove that dependency.

@@ -25,8 +25,7 @@ class MetadataApiTest {
         .andExpect(jsonPath("$.fileId").value("metadata.json"))
         .andExpect(jsonPath("$.attributes.type").value("documentation"))
         .andExpect(jsonPath("$.attributes.subtype").value("metadata"))
-        .andExpect(jsonPath("$.metadata.schemaVersion").value(1))
-        .andExpect(jsonPath("$.metadata.lastIndexedCommit").doesNotExist());
+        .andExpect(jsonPath("$.metadata.schemaVersion").value(2))
+        .andExpect(jsonPath("$.metadata.indexing.lastIndexedCommit").doesNotExist());
   }
 }
-
