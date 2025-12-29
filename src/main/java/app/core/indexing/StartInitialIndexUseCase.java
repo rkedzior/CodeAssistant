@@ -27,6 +27,9 @@ import org.springframework.core.task.TaskExecutor;
 
 public class StartInitialIndexUseCase {
   private static final Duration PROGRESS_STEP_DELAY = Duration.ofMillis(250);
+  private static final Duration INGESTION_POLL_INTERVAL = Duration.ofSeconds(1);
+  private static final Duration INGESTION_TIMEOUT = Duration.ofSeconds(60);
+  private static final int MAX_INGESTION_FAILURES = 10;
 
   private final GitPort gitPort;
   private final ProjectStatePort projectStatePort;
@@ -67,6 +70,8 @@ public class StartInitialIndexUseCase {
           UploadResult uploadResult =
               uploadTrackedFiles(
                   trackedFiles, (path) -> gitPort.readWorkingTreeFile(path), "");
+
+          waitForIngestion(uploadResult, "");
 
           updateProgress("Updating metadata…");
           sleep(PROGRESS_STEP_DELAY);
@@ -128,6 +133,8 @@ public class StartInitialIndexUseCase {
                   "Update: ");
           pathToFileIds.putAll(uploadResult.pathToFileIds());
 
+          waitForIngestion(uploadResult, "Update: ");
+
           updateProgress("Update: updating metadata...");
           sleep(PROGRESS_STEP_DELAY);
 
@@ -172,7 +179,13 @@ public class StartInitialIndexUseCase {
     }
 
     IndexJobState runningState =
-        new IndexJobState(IndexJobStatus.RUNNING, startingProgress, Instant.now(), null, null);
+        new IndexJobState(
+            IndexJobStatus.RUNNING,
+            startingProgress,
+            Instant.now(),
+            null,
+            null,
+            IndexIngestionStatus.empty());
     state.set(runningState);
 
     CompletableFuture<Void> future = new CompletableFuture<>();
@@ -182,22 +195,26 @@ public class StartInitialIndexUseCase {
         () -> {
           try {
             job.run();
+            IndexJobState current = state.get();
             state.set(
                 new IndexJobState(
                     IndexJobStatus.SUCCESS,
                     successProgress,
-                    state.get().startedAt(),
+                    current.startedAt(),
                     Instant.now(),
-                    null));
+                    current.error(),
+                    current.ingestion()));
             future.complete(null);
           } catch (Exception e) {
+            IndexJobState current = state.get();
             state.set(
                 new IndexJobState(
                     IndexJobStatus.FAILED,
                     "Failed.",
-                    state.get().startedAt(),
+                    current.startedAt(),
                     Instant.now(),
-                    e.getMessage()));
+                    e.getMessage(),
+                    current.ingestion()));
             future.completeExceptionally(e);
           } finally {
             running.set(null);
@@ -220,6 +237,7 @@ public class StartInitialIndexUseCase {
     int uploadedCount = 0;
     int skippedCount = 0;
     Map<String, List<String>> pathToFileIds = new HashMap<>();
+    Map<String, String> fileIdToPath = new HashMap<>();
     for (int i = 0; i < trackedFiles.size(); i++) {
       String repoRelativePath = trackedFiles.get(i);
       Optional<Map<String, String>> attributes = trackedFileClassifier.classify(repoRelativePath);
@@ -234,6 +252,11 @@ public class StartInitialIndexUseCase {
       String path = normalizePath(attributes.get().get("path"));
       String fileId = computeFileId(path == null ? repoRelativePath : path);
       String storedFileId = vectorStorePort.createFile(fileId, content, attributes.get());
+      if (storedFileId != null && !storedFileId.isBlank()) {
+        String pathForStatus =
+            path == null || path.isBlank() ? normalizePath(repoRelativePath) : path;
+        fileIdToPath.put(storedFileId, pathForStatus);
+      }
       if (path != null && !path.isBlank()) {
         pathToFileIds.put(path, List.of(storedFileId));
       }
@@ -248,14 +271,186 @@ public class StartInitialIndexUseCase {
             + skippedCount
             + " file(s)…");
     sleep(PROGRESS_STEP_DELAY);
-    return new UploadResult(Map.copyOf(pathToFileIds), uploadedCount, skippedCount);
+    return new UploadResult(
+        Map.copyOf(pathToFileIds),
+        Map.copyOf(fileIdToPath),
+        uploadedCount,
+        skippedCount);
+  }
+
+  private void waitForIngestion(UploadResult uploadResult, String progressPrefix) {
+    if (uploadResult == null || uploadResult.uploadedCount() == 0) {
+      updateIngestionStatus(IndexIngestionStatus.empty(), null);
+      return;
+    }
+
+    String safePrefix = progressPrefix == null ? "" : progressPrefix;
+    IndexIngestionStatus status = buildIngestionStatus(uploadResult);
+    updateIngestionStatus(status, formatIngestionProgress(safePrefix, status));
+
+    if (status.processing() == 0) {
+      recordIngestionError(status);
+      return;
+    }
+
+    Instant deadline = Instant.now().plus(INGESTION_TIMEOUT);
+    while (Instant.now().isBefore(deadline) && status.processing() > 0) {
+      sleep(INGESTION_POLL_INTERVAL);
+      status = buildIngestionStatus(uploadResult);
+      updateIngestionStatus(status, formatIngestionProgress(safePrefix, status));
+    }
+
+    if (status.processing() > 0) {
+      updateError("Timed out waiting for vector store ingestion.");
+      return;
+    }
+
+    recordIngestionError(status);
+  }
+
+  private void recordIngestionError(IndexIngestionStatus status) {
+    if (status != null && status.failed() > 0) {
+      updateError("Vector store ingestion failed for " + status.failed() + " file(s).");
+    }
+  }
+
+  private IndexIngestionStatus buildIngestionStatus(UploadResult uploadResult) {
+    Map<String, String> fileIdToPath = uploadResult.fileIdToPath();
+    if (fileIdToPath == null || fileIdToPath.isEmpty()) {
+      return IndexIngestionStatus.empty();
+    }
+
+    Map<String, VectorStoreFileSummary> summaryById = new HashMap<>();
+    for (VectorStoreFileSummary summary : vectorStorePort.listFiles()) {
+      if (summary != null && summary.fileId() != null) {
+        summaryById.put(summary.fileId(), summary);
+      }
+    }
+
+    int uploaded = fileIdToPath.size();
+    int processing = 0;
+    int ready = 0;
+    int failed = 0;
+    List<IndexIngestionStatus.IngestionFailure> failures = new ArrayList<>();
+
+    for (Map.Entry<String, String> entry : fileIdToPath.entrySet()) {
+      String fileId = entry.getKey();
+      if (fileId == null) {
+        continue;
+      }
+
+      VectorStoreFileSummary summary = summaryById.get(fileId);
+      String path = entry.getValue();
+      if ((path == null || path.isBlank()) && summary != null && summary.attributes() != null) {
+        path = normalizePath(summary.attributes().get("path"));
+      }
+
+      if (summary == null) {
+        failed++;
+        if (failures.size() < MAX_INGESTION_FAILURES) {
+          failures.add(new IndexIngestionStatus.IngestionFailure(fileId, path, "missing"));
+        }
+        continue;
+      }
+
+      String status = normalizeStatus(summary.status());
+      IngestionState state = toIngestionState(status);
+      switch (state) {
+        case READY -> ready++;
+        case PROCESSING -> processing++;
+        case FAILED -> {
+          failed++;
+          if (failures.size() < MAX_INGESTION_FAILURES) {
+            failures.add(new IndexIngestionStatus.IngestionFailure(fileId, path, status));
+          }
+        }
+      }
+    }
+
+    String lastError =
+        failed > 0 ? "Vector store ingestion failed for " + failed + " file(s)." : null;
+    return new IndexIngestionStatus(uploaded, processing, ready, failed, failures, lastError);
+  }
+
+  private static String formatIngestionProgress(String prefix, IndexIngestionStatus status) {
+    String safePrefix = prefix == null ? "" : prefix;
+    return safePrefix
+        + "Ingestion: ready "
+        + status.ready()
+        + " / "
+        + status.uploaded()
+        + ", processing "
+        + status.processing()
+        + ", failed "
+        + status.failed()
+        + "...";
+  }
+
+  private static String normalizeStatus(String status) {
+    if (status == null) {
+      return null;
+    }
+    String trimmed = status.trim().toLowerCase();
+    return trimmed.isBlank() ? null : trimmed;
+  }
+
+  private static IngestionState toIngestionState(String status) {
+    if (status == null) {
+      return IngestionState.PROCESSING;
+    }
+    if ("completed".equals(status) || "ready".equals(status) || "succeeded".equals(status)) {
+      return IngestionState.READY;
+    }
+    if ("failed".equals(status)
+        || "error".equals(status)
+        || "cancelled".equals(status)
+        || "canceled".equals(status)) {
+      return IngestionState.FAILED;
+    }
+    if (status.contains("progress")
+        || status.contains("process")
+        || status.contains("queued")
+        || status.contains("pending")) {
+      return IngestionState.PROCESSING;
+    }
+    return IngestionState.PROCESSING;
   }
 
   private void updateProgress(String progress) {
     IndexJobState current = state.get();
     state.set(
         new IndexJobState(
-            current.status(), progress, current.startedAt(), current.finishedAt(), current.error()));
+            current.status(),
+            progress,
+            current.startedAt(),
+            current.finishedAt(),
+            current.error(),
+            current.ingestion()));
+  }
+
+  private void updateIngestionStatus(IndexIngestionStatus ingestion, String progress) {
+    IndexJobState current = state.get();
+    String nextProgress = progress == null ? current.progress() : progress;
+    state.set(
+        new IndexJobState(
+            current.status(),
+            nextProgress,
+            current.startedAt(),
+            current.finishedAt(),
+            current.error(),
+            ingestion));
+  }
+
+  private void updateError(String error) {
+    IndexJobState current = state.get();
+    state.set(
+        new IndexJobState(
+            current.status(),
+            current.progress(),
+            current.startedAt(),
+            current.finishedAt(),
+            error,
+            current.ingestion()));
   }
 
   private static void sleep(Duration duration) {
@@ -296,6 +491,8 @@ public class StartInitialIndexUseCase {
     if (!removedPaths.isEmpty()) {
       deletePaths(removedPaths, existingPathToFileIds, safePrefix);
     }
+
+    waitForIngestion(uploadResult, safePrefix);
 
     updateProgress(safePrefix + "Updating metadata...");
     sleep(PROGRESS_STEP_DELAY);
@@ -413,8 +610,17 @@ public class StartInitialIndexUseCase {
     byte[] read(String repoRelativePath);
   }
 
+  private enum IngestionState {
+    READY,
+    PROCESSING,
+    FAILED
+  }
+
   private record UploadResult(
-      Map<String, List<String>> pathToFileIds, int uploadedCount, int skippedCount) {}
+      Map<String, List<String>> pathToFileIds,
+      Map<String, String> fileIdToPath,
+      int uploadedCount,
+      int skippedCount) {}
 
   private record DiffPlan(Set<String> toUpload, Set<String> toDelete) {}
 }

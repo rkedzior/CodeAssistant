@@ -72,6 +72,15 @@ class IndexingFlowTest {
         observedProgressWhileRunning.size() >= 2,
         "Expected progress to change while RUNNING, got: " + observedProgressWhileRunning);
     assertTrue(finalState.status() == IndexJobStatus.SUCCESS, "Expected SUCCESS, got " + finalState);
+    assertTrue(finalState.ingestion() != null, "Expected ingestion status to be present.");
+    assertTrue(
+        finalState.ingestion().uploaded() > 0, "Expected ingestion uploaded count to be > 0.");
+    assertTrue(
+        finalState.ingestion().processing() == 0,
+        "Expected ingestion processing to be 0, got " + finalState.ingestion().processing());
+    assertTrue(
+        finalState.ingestion().failed() == 0,
+        "Expected ingestion failed to be 0, got " + finalState.ingestion().failed());
 
     mockMvc
         .perform(get("/"))

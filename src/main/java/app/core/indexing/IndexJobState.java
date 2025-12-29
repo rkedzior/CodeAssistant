@@ -7,9 +7,10 @@ public record IndexJobState(
     String progress,
     Instant startedAt,
     Instant finishedAt,
-    String error) {
+    String error,
+    IndexIngestionStatus ingestion) {
   public static IndexJobState idle() {
-    return new IndexJobState(IndexJobStatus.IDLE, "Idle", null, null, null);
+    return new IndexJobState(
+        IndexJobStatus.IDLE, "Idle", null, null, null, IndexIngestionStatus.empty());
   }
 }
-

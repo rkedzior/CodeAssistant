@@ -83,6 +83,17 @@
           Progress:
           <strong id="jobProgress" th:text="${job.progress}">Idle</strong>
         </div>
+        <div id="ingestionRow" style="margin-top: 0.5rem; display: none">
+          Ingestion:
+          <strong id="ingestionUploaded">0</strong> uploaded,
+          <strong id="ingestionProcessing">0</strong> processing,
+          <strong id="ingestionReady">0</strong> ready,
+          <strong id="ingestionFailed">0</strong> failed
+        </div>
+        <div id="ingestionFailures" style="margin-top: 0.5rem; display: none">
+          Failed files:
+          <ul id="ingestionFailureList"></ul>
+        </div>
         <div id="jobErrorRow" style="margin-top: 0.5rem; display: none">
           Error:
           <strong id="jobError"></strong>
@@ -160,6 +171,13 @@
 
       const jobStatus = document.getElementById("jobStatus");
       const jobProgress = document.getElementById("jobProgress");
+      const ingestionRow = document.getElementById("ingestionRow");
+      const ingestionUploaded = document.getElementById("ingestionUploaded");
+      const ingestionProcessing = document.getElementById("ingestionProcessing");
+      const ingestionReady = document.getElementById("ingestionReady");
+      const ingestionFailed = document.getElementById("ingestionFailed");
+      const ingestionFailures = document.getElementById("ingestionFailures");
+      const ingestionFailureList = document.getElementById("ingestionFailureList");
       const jobErrorRow = document.getElementById("jobErrorRow");
       const jobError = document.getElementById("jobError");
 
@@ -169,9 +187,41 @@
         jobStatus.textContent = state.status || "IDLE";
         jobProgress.textContent = state.progress || "";
 
-        if (state.status === "FAILED" && state.error) {
+        const ingestion = state.ingestion || null;
+        if (
+          ingestion &&
+          (ingestion.uploaded || ingestion.processing || ingestion.ready || ingestion.failed)
+        ) {
+          ingestionRow.style.display = "block";
+          ingestionUploaded.textContent = ingestion.uploaded || 0;
+          ingestionProcessing.textContent = ingestion.processing || 0;
+          ingestionReady.textContent = ingestion.ready || 0;
+          ingestionFailed.textContent = ingestion.failed || 0;
+        } else {
+          ingestionRow.style.display = "none";
+        }
+
+        if (ingestion && ingestion.failures && ingestion.failures.length) {
+          ingestionFailures.style.display = "block";
+          ingestionFailureList.innerHTML = "";
+          ingestion.failures.forEach((failure) => {
+            const li = document.createElement("li");
+            const path = failure.path ? ` (${failure.path})` : "";
+            const status = failure.status ? `: ${failure.status}` : "";
+            li.textContent = `${failure.fileId}${path}${status}`;
+            ingestionFailureList.appendChild(li);
+          });
+        } else {
+          ingestionFailures.style.display = "none";
+          ingestionFailureList.innerHTML = "";
+        }
+
+        const errorMessage =
+          (state.error && String(state.error)) ||
+          (ingestion && ingestion.lastError ? String(ingestion.lastError) : "");
+        if (errorMessage) {
           jobErrorRow.style.display = "block";
-          jobError.textContent = state.error;
+          jobError.textContent = errorMessage;
         } else {
           jobErrorRow.style.display = "none";
           jobError.textContent = "";
@@ -304,6 +354,7 @@
           await poll();
         });
 
+      poll();
       if (jobStatus.textContent === "RUNNING" && !pollTimer) {
         pollTimer = setInterval(poll, 500);
       }

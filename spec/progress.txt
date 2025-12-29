@@ -183,6 +183,14 @@ Observations / short memory:
 - OpenAIConfig/OpenAISettingsResolver ignore ProjectConfig.openaiApiKey unless
   allowKeyInUi is true; ProjectSetupController clears persisted keys by default.
 
+- BL-1210 complete: indexing now polls vector store ingestion after uploads and
+  reports counts for uploaded/processing/ready/failed; index UI/API show status
+  counts, failed file details, and ingestion timeout/failure messages.
+- Tests: updated IndexingFlowTest; `.\mvnw.cmd clean test` passes (65 tests).
+Observations / short memory:
+- VectorStoreFileSummary now includes a status; OpenAI adapter maps vector store
+  file status, local adapters mark files as ready.
+
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
 - Spec/reference mismatch: `spec/classes_backend_ai.txt` referenced by BL-1204+ stories is not present in this repo (likely from another project). Provide/copy it or adjust stories to remove that dependency.

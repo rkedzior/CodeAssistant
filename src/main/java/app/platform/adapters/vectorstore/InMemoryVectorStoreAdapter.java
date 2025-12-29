@@ -42,7 +42,10 @@ public class InMemoryVectorStoreAdapter implements VectorStorePort {
   @Override
   public List<VectorStoreFileSummary> listFiles() {
     return files.values().stream()
-        .map(file -> new VectorStoreFileSummary(file.fileId(), file.content().length, file.attributes()))
+        .map(
+            file ->
+                new VectorStoreFileSummary(
+                    file.fileId(), file.content().length, file.attributes(), "ready"))
         .sorted(Comparator.comparing(VectorStoreFileSummary::fileId))
         .toList();
   }

@@ -114,7 +114,7 @@ public class FileSystemVectorStoreAdapter implements VectorStorePort {
 
         Map<String, String> attributes = readAttributes(attrsPath);
         long sizeBytes = Files.size(contentPath);
-        results.add(new VectorStoreFileSummary(fileId, sizeBytes, attributes));
+        results.add(new VectorStoreFileSummary(fileId, sizeBytes, attributes, "ready"));
       }
     } catch (IOException e) {
       throw new IllegalStateException("Failed to list vector store files at " + root, e);

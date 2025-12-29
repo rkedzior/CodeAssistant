@@ -148,7 +148,10 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
   @Override
   public List<VectorStoreFileSummary> listFiles() {
     return streamVectorStoreFiles()
-        .map(f -> new VectorStoreFileSummary(f.id(), f.usageBytes(), parseAttributes(f)))
+        .map(
+            f ->
+                new VectorStoreFileSummary(
+                    f.id(), f.usageBytes(), parseAttributes(f), normalizeStatus(f.status())))
         .sorted(Comparator.comparing(VectorStoreFileSummary::fileId))
         .toList();
   }
@@ -257,6 +260,15 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
       builder.putAdditionalProperty(key, JsonValue.from(value));
     }
     return builder.build();
+  }
+
+  private static String normalizeStatus(
+      com.openai.models.vectorstores.files.VectorStoreFile.Status status) {
+    if (status == null) {
+      return "unknown";
+    }
+    String normalized = status.toString().trim().toLowerCase();
+    return normalized.isEmpty() ? "unknown" : normalized;
   }
 
   private static String normalizeOptional(String value) {

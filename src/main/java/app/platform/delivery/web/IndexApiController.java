@@ -1,6 +1,7 @@
 package app.platform.delivery.web;
 
 import app.core.git.GitPort;
+import app.core.indexing.IndexIngestionStatus;
 import app.core.indexing.IndexJobState;
 import app.core.indexing.IndexJobStatus;
 import app.core.indexing.StartInitialIndexUseCase;
@@ -41,7 +42,8 @@ public class IndexApiController {
                   "Failed.",
                   Instant.now(),
                   Instant.now(),
-                  "Field `commit` must not be blank."));
+                  "Field `commit` must not be blank.",
+                  IndexIngestionStatus.empty()));
     }
 
     try {
@@ -49,7 +51,14 @@ public class IndexApiController {
           .body(startInitialIndexUseCase.startUpdateIndex(request.commit().trim()));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest()
-          .body(new IndexJobState(IndexJobStatus.FAILED, "Failed.", Instant.now(), Instant.now(), e.getMessage()));
+          .body(
+              new IndexJobState(
+                  IndexJobStatus.FAILED,
+                  "Failed.",
+                  Instant.now(),
+                  Instant.now(),
+                  e.getMessage(),
+                  IndexIngestionStatus.empty()));
     }
   }
 
@@ -66,7 +75,8 @@ public class IndexApiController {
                   "Failed.",
                   Instant.now(),
                   Instant.now(),
-                  "Field `commit` must not be blank."));
+                  "Field `commit` must not be blank.",
+                  IndexIngestionStatus.empty()));
     }
 
     try {
@@ -74,7 +84,14 @@ public class IndexApiController {
           .body(startInitialIndexUseCase.startFullReloadIndex(request.commit().trim()));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest()
-          .body(new IndexJobState(IndexJobStatus.FAILED, "Failed.", Instant.now(), Instant.now(), e.getMessage()));
+          .body(
+              new IndexJobState(
+                  IndexJobStatus.FAILED,
+                  "Failed.",
+                  Instant.now(),
+                  Instant.now(),
+                  e.getMessage(),
+                  IndexIngestionStatus.empty()));
     }
   }
 
