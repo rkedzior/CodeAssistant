@@ -68,7 +68,7 @@ public class RunAnalysisUseCase {
 
     String answer;
     try {
-      answer = llmPort.answer(prompt, context);
+      answer = llmPort.answer(prompt, context, codeScope);
     } catch (Exception e) {
       String message =
           e.getMessage() == null || e.getMessage().isBlank() ? e.getClass().getSimpleName() : e.getMessage();
@@ -82,4 +82,3 @@ public class RunAnalysisUseCase {
     return new AnalysisResponse(prompt, answer, context, null);
   }
 }
-

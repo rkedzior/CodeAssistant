@@ -4,10 +4,6 @@ import app.core.analysis.LlmPort;
 import app.core.analysis.RetrievedContextItem;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-@Component
 public class LocalLlmAdapter implements LlmPort {
   private static final int MAX_PATHS = 6;
   private static final int MAX_PREVIEW_CHARS = 360;
@@ -16,15 +12,14 @@ public class LocalLlmAdapter implements LlmPort {
   private final boolean failAlways;
   private final AtomicBoolean didFailOnce = new AtomicBoolean(false);
 
-  public LocalLlmAdapter(
-      @Value("${codeassistant.llm.failOnce:false}") boolean failOnce,
-      @Value("${codeassistant.llm.failAlways:false}") boolean failAlways) {
+  public LocalLlmAdapter(boolean failOnce, boolean failAlways) {
     this.failOnce = failOnce;
     this.failAlways = failAlways;
   }
 
   @Override
-  public String answer(String prompt, List<RetrievedContextItem> retrievedContext) {
+  public String answer(
+      String prompt, List<RetrievedContextItem> retrievedContext, boolean codeScope) {
     maybeThrowInjectedFault();
 
     String normalizedPrompt = prompt == null ? "" : prompt.trim();

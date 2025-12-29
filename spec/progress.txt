@@ -134,6 +134,17 @@ Observations / short memory:
   placeholder errors; JacksonConfig provides ObjectMapper when auto-config is
   unavailable.
 
+- BL-1205 complete: analysis uses OpenAI Responses API with file_search when the
+  OpenAI client is configured; codeScope applies a type=code filter; local LLM
+  remains the fallback.
+- Tests: added OpenAIResponsesLlmAdapterTest; .\mvnw.cmd clean test passes
+  (62 tests).
+Observations / short memory:
+- LlmPort now accepts the codeScope flag; OpenAIResponsesLlmAdapter calls
+  Responses with file_search and enforces vectorStoreId presence.
+- LlmConfig chooses OpenAI LLM when OpenAIClient exists and otherwise keeps the
+  local deterministic adapter for test/offline runs.
+
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
 - Spec/reference mismatch: `spec/classes_backend_ai.txt` referenced by BL-1204+ stories is not present in this repo (likely from another project). Provide/copy it or adjust stories to remove that dependency.
