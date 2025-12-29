@@ -12,4 +12,5 @@ public interface GitPort {
   List<String> listTrackedFilesAtCommit(String commit);
 
   byte[] readFileAtCommit(String commit, String repoRelativePath);
+  List<GitDiffEntry> listChangedFiles(String fromCommit, String toCommit);
 }

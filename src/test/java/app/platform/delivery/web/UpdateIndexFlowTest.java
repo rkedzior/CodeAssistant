@@ -2,6 +2,7 @@ package app.platform.delivery.web;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import app.core.indexing.IndexJobState;
 import app.core.indexing.IndexJobStatus;
+import app.core.vectorstore.VectorStoreFileSummary;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -73,6 +77,9 @@ class UpdateIndexFlowTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitA()));
 
+    List<VectorStoreFileSummary> initialFiles = listVectorStoreFiles();
+    assertTrue(containsPath(initialFiles, "spec/old.md"), "Expected spec/old.md to be indexed");
+
     mockMvc
         .perform(
             post("/api/index/update")
@@ -90,6 +97,10 @@ class UpdateIndexFlowTest {
         .perform(get("/api/metadata"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.metadata.lastIndexedCommit").value(commits.commitX()));
+
+    List<VectorStoreFileSummary> updatedFiles = listVectorStoreFiles();
+    assertFalse(containsPath(updatedFiles, "spec/old.md"), "Expected spec/old.md to be removed");
+    assertTrue(containsPath(updatedFiles, "spec/new.md"), "Expected spec/new.md to be indexed");
   }
 
   @Test
@@ -127,13 +138,16 @@ class UpdateIndexFlowTest {
     runGit(repoDir, "config", "user.email", "test@example.com");
     runGit(repoDir, "config", "user.name", "Test User");
 
+    Files.createDirectories(repoDir.resolve("spec"));
+    Files.writeString(repoDir.resolve("spec/old.md"), "Old", StandardCharsets.UTF_8);
     Files.writeString(repoDir.resolve("README.md"), "A", StandardCharsets.UTF_8);
     runGit(repoDir, "add", ".");
     runGit(repoDir, "commit", "-m", "Commit A");
     String commitA = runGit(repoDir, "rev-parse", "HEAD").trim();
 
+    runGit(repoDir, "mv", "spec/old.md", "spec/new.md");
     Files.writeString(repoDir.resolve("README.md"), "X", StandardCharsets.UTF_8);
-    runGit(repoDir, "add", "README.md");
+    runGit(repoDir, "add", ".");
     runGit(repoDir, "commit", "-m", "Commit X");
     String commitX = runGit(repoDir, "rev-parse", "HEAD").trim();
 
@@ -143,6 +157,19 @@ class UpdateIndexFlowTest {
     assertEquals("X", Files.readString(repoDir.resolve("README.md"), StandardCharsets.UTF_8));
 
     return new RepoCommits(commitA, commitX);
+  }
+
+  private List<VectorStoreFileSummary> listVectorStoreFiles() throws Exception {
+    MvcResult result =
+        mockMvc.perform(get("/api/vectorstore/files")).andExpect(status().isOk()).andReturn();
+    return objectMapper.readValue(
+        result.getResponse().getContentAsByteArray(),
+        new TypeReference<List<VectorStoreFileSummary>>() {});
+  }
+
+  private static boolean containsPath(List<VectorStoreFileSummary> files, String path) {
+    return files.stream()
+        .anyMatch(file -> file.attributes() != null && path.equals(file.attributes().get("path")));
   }
 
   private static String runGit(Path repoDir, String... args) throws Exception {

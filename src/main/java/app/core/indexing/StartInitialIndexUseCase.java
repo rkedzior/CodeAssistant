@@ -1,19 +1,26 @@
 package app.core.indexing;
 
+import app.core.git.GitDiffEntry;
 import app.core.git.GitPort;
 import app.core.projectstate.ProjectMetadata;
 import app.core.projectstate.ProjectMetadataState;
 import app.core.projectstate.ProjectStatePort;
+import app.core.vectorstore.VectorStoreFileSummary;
 import app.core.vectorstore.VectorStorePort;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.core.task.TaskExecutor;
@@ -57,14 +64,19 @@ public class StartInitialIndexUseCase {
           sleep(PROGRESS_STEP_DELAY);
 
           List<String> trackedFiles = gitPort.listTrackedFiles();
-          uploadTrackedFiles(trackedFiles, (path) -> gitPort.readWorkingTreeFile(path), "");
+          UploadResult uploadResult =
+              uploadTrackedFiles(
+                  trackedFiles, (path) -> gitPort.readWorkingTreeFile(path), "");
 
           updateProgress("Updating metadata…");
           sleep(PROGRESS_STEP_DELAY);
 
           ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
           ProjectMetadata updated =
-              new ProjectMetadata(existingMetadata.metadata().schemaVersion(), headCommit);
+              new ProjectMetadata(
+                  existingMetadata.metadata().schemaVersion(),
+                  headCommit,
+                  uploadResult.pathToFileIds());
           projectStatePort.saveMetadata(updated);
         });
   }
@@ -85,21 +97,48 @@ public class StartInitialIndexUseCase {
         startingProgress,
         "Completed update.",
         () -> {
-          updateProgress("Update: enumerating tracked files at " + trimmedTarget + "…");
+          if (fromCommit == null) {
+            updateProgress("Update: no prior index, running full reload...");
+            sleep(PROGRESS_STEP_DELAY);
+            runFullReloadIndex(trimmedTarget, "Update: ");
+            return;
+          }
+
+          updateProgress("Update: reading changes from " + fromCommit + " to " + trimmedTarget + "...");
           sleep(PROGRESS_STEP_DELAY);
 
-          List<String> trackedFiles = gitPort.listTrackedFilesAtCommit(trimmedTarget);
-          uploadTrackedFiles(
-              trackedFiles,
-              (path) -> gitPort.readFileAtCommit(trimmedTarget, path),
-              "Update: ");
+          List<GitDiffEntry> diffEntries = gitPort.listChangedFiles(fromCommit, trimmedTarget);
+          DiffPlan diffPlan = buildDiffPlan(diffEntries);
 
-          updateProgress("Update: updating metadata…");
+          updateProgress(
+              "Update: "
+                  + diffPlan.toUpload().size()
+                  + " file(s) to upload, "
+                  + diffPlan.toDelete().size()
+                  + " file(s) to delete...");
           sleep(PROGRESS_STEP_DELAY);
 
           ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
+          Map<String, List<String>> pathToFileIds =
+              new HashMap<>(existingMetadata.metadata().pathToFileIdsOrEmpty());
+
+          deletePaths(diffPlan.toDelete(), pathToFileIds, "Update: ");
+
+          UploadResult uploadResult =
+              uploadTrackedFiles(
+                  new ArrayList<>(diffPlan.toUpload()),
+                  (path) -> gitPort.readFileAtCommit(trimmedTarget, path),
+                  "Update: ");
+          pathToFileIds.putAll(uploadResult.pathToFileIds());
+
+          updateProgress("Update: updating metadata...");
+          sleep(PROGRESS_STEP_DELAY);
+
           ProjectMetadata updated =
-              new ProjectMetadata(existingMetadata.metadata().schemaVersion(), trimmedTarget);
+              new ProjectMetadata(
+                  existingMetadata.metadata().schemaVersion(),
+                  trimmedTarget,
+                  Map.copyOf(pathToFileIds));
           projectStatePort.saveMetadata(updated);
         });
   }
@@ -116,22 +155,7 @@ public class StartInitialIndexUseCase {
         startingProgress,
         "Completed reload.",
         () -> {
-          updateProgress("Reload: enumerating tracked files at " + trimmedTarget + "...");
-          sleep(PROGRESS_STEP_DELAY);
-
-          List<String> trackedFiles = gitPort.listTrackedFilesAtCommit(trimmedTarget);
-          uploadTrackedFiles(
-              trackedFiles,
-              (path) -> gitPort.readFileAtCommit(trimmedTarget, path),
-              "Reload: ");
-
-          updateProgress("Reload: updating metadata...");
-          sleep(PROGRESS_STEP_DELAY);
-
-          ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
-          ProjectMetadata updated =
-              new ProjectMetadata(existingMetadata.metadata().schemaVersion(), trimmedTarget);
-          projectStatePort.saveMetadata(updated);
+          runFullReloadIndex(trimmedTarget, "Reload: ");
         });
   }
 
@@ -189,7 +213,8 @@ public class StartInitialIndexUseCase {
     return state.get();
   }
 
-  private void uploadTrackedFiles(List<String> trackedFiles, FileReader fileReader, String prefix) {
+  private UploadResult uploadTrackedFiles(
+      List<String> trackedFiles, FileReader fileReader, String prefix) {
     String safePrefix = prefix == null ? "" : prefix;
 
     updateProgress(safePrefix + "Found " + trackedFiles.size() + " tracked files…");
@@ -200,6 +225,7 @@ public class StartInitialIndexUseCase {
 
     int uploadedCount = 0;
     int skippedCount = 0;
+    Map<String, List<String>> pathToFileIds = new HashMap<>();
     for (int i = 0; i < trackedFiles.size(); i++) {
       String repoRelativePath = trackedFiles.get(i);
       Optional<Map<String, String>> attributes = trackedFileClassifier.classify(repoRelativePath);
@@ -211,8 +237,12 @@ public class StartInitialIndexUseCase {
       updateProgress(
           safePrefix + "Uploading " + (uploadedCount + 1) + " / " + trackedFiles.size() + "…");
       byte[] content = fileReader.read(repoRelativePath);
-      String fileId = computeFileId(attributes.get().get("path"));
-      vectorStorePort.createFile(fileId, content, attributes.get());
+      String path = normalizePath(attributes.get().get("path"));
+      String fileId = computeFileId(path == null ? repoRelativePath : path);
+      String storedFileId = vectorStorePort.createFile(fileId, content, attributes.get());
+      if (path != null && !path.isBlank()) {
+        pathToFileIds.put(path, List.of(storedFileId));
+      }
       uploadedCount++;
     }
 
@@ -224,6 +254,7 @@ public class StartInitialIndexUseCase {
             + skippedCount
             + " file(s)…");
     sleep(PROGRESS_STEP_DELAY);
+    return new UploadResult(Map.copyOf(pathToFileIds), uploadedCount, skippedCount);
   }
 
   private void updateProgress(String progress) {
@@ -252,6 +283,135 @@ public class StartInitialIndexUseCase {
     return "repo_" + HexFormat.of().formatHex(digest);
   }
 
+  private void runFullReloadIndex(String targetCommit, String progressPrefix) {
+    String safePrefix = progressPrefix == null ? "" : progressPrefix;
+
+    updateProgress(safePrefix + "Enumerating tracked files at " + targetCommit + "...");
+    sleep(PROGRESS_STEP_DELAY);
+
+    List<String> trackedFiles = gitPort.listTrackedFilesAtCommit(targetCommit);
+    UploadResult uploadResult =
+        uploadTrackedFiles(
+            trackedFiles, (path) -> gitPort.readFileAtCommit(targetCommit, path), safePrefix);
+
+    ProjectMetadataState existingMetadata = projectStatePort.getOrCreateMetadata();
+    Map<String, List<String>> existingPathToFileIds =
+        new HashMap<>(existingMetadata.metadata().pathToFileIdsOrEmpty());
+    Set<String> removedPaths = new HashSet<>(existingPathToFileIds.keySet());
+    removedPaths.removeAll(uploadResult.pathToFileIds().keySet());
+    if (!removedPaths.isEmpty()) {
+      deletePaths(removedPaths, existingPathToFileIds, safePrefix);
+    }
+
+    updateProgress(safePrefix + "Updating metadata...");
+    sleep(PROGRESS_STEP_DELAY);
+
+    ProjectMetadata updated =
+        new ProjectMetadata(
+            existingMetadata.metadata().schemaVersion(),
+            targetCommit,
+            uploadResult.pathToFileIds());
+    projectStatePort.saveMetadata(updated);
+  }
+
+  private DiffPlan buildDiffPlan(List<GitDiffEntry> diffEntries) {
+    Set<String> toUpload = new LinkedHashSet<>();
+    Set<String> toDelete = new LinkedHashSet<>();
+    if (diffEntries != null) {
+      for (GitDiffEntry entry : diffEntries) {
+        if (entry == null || entry.type() == null) {
+          continue;
+        }
+        switch (entry.type()) {
+          case ADDED, MODIFIED -> addNormalizedPath(entry.path(), toUpload);
+          case DELETED -> addNormalizedPath(entry.path(), toDelete);
+          case RENAMED -> {
+            addNormalizedPath(entry.previousPath(), toDelete);
+            addNormalizedPath(entry.path(), toUpload);
+          }
+        }
+      }
+    }
+    return new DiffPlan(toUpload, toDelete);
+  }
+
+  private void addNormalizedPath(String path, Set<String> destination) {
+    String normalized = normalizePath(path);
+    if (normalized == null || normalized.isBlank()) {
+      return;
+    }
+    destination.add(normalized);
+  }
+
+  private void deletePaths(
+      Set<String> pathsToDelete, Map<String, List<String>> pathToFileIds, String progressPrefix) {
+    if (pathsToDelete == null || pathsToDelete.isEmpty()) {
+      return;
+    }
+
+    String safePrefix = progressPrefix == null ? "" : progressPrefix;
+    updateProgress(safePrefix + "Deleting " + pathsToDelete.size() + " file(s)...");
+    sleep(PROGRESS_STEP_DELAY);
+
+    Map<String, List<String>> fallbackPathToFileIds =
+        buildPathToFileIds(vectorStorePort.listFiles());
+
+    int deletedCount = 0;
+    for (String path : pathsToDelete) {
+      String normalized = normalizePath(path);
+      if (normalized == null || normalized.isBlank()) {
+        continue;
+      }
+      List<String> fileIds = pathToFileIds.get(normalized);
+      if (fileIds == null || fileIds.isEmpty()) {
+        fileIds = fallbackPathToFileIds.get(normalized);
+      }
+      if (fileIds != null) {
+        for (String fileId : fileIds) {
+          if (fileId == null || fileId.isBlank()) {
+            continue;
+          }
+          vectorStorePort.deleteFile(fileId);
+          deletedCount++;
+        }
+      }
+      pathToFileIds.remove(normalized);
+    }
+
+    updateProgress(safePrefix + "Deleted " + deletedCount + " file(s)...");
+    sleep(PROGRESS_STEP_DELAY);
+  }
+
+  private static Map<String, List<String>> buildPathToFileIds(
+      List<VectorStoreFileSummary> files) {
+    if (files == null || files.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, List<String>> results = new HashMap<>();
+    for (VectorStoreFileSummary file : files) {
+      if (file == null || file.attributes() == null) {
+        continue;
+      }
+      String path = normalizePath(file.attributes().get("path"));
+      if (path == null || path.isBlank()) {
+        continue;
+      }
+      results.computeIfAbsent(path, ignored -> new ArrayList<>()).add(file.fileId());
+    }
+    return results.isEmpty() ? Map.of() : Map.copyOf(results);
+  }
+
+  private static String normalizePath(String path) {
+    if (path == null) {
+      return null;
+    }
+    String normalized = path.replace('\\', '/');
+    if (normalized.startsWith("./")) {
+      normalized = normalized.substring(2);
+    }
+    return normalized;
+  }
+
   @FunctionalInterface
   private interface JobRunner {
     void run() throws Exception;
@@ -261,4 +421,9 @@ public class StartInitialIndexUseCase {
   private interface FileReader {
     byte[] read(String repoRelativePath);
   }
+
+  private record UploadResult(
+      Map<String, List<String>> pathToFileIds, int uploadedCount, int skippedCount) {}
+
+  private record DiffPlan(Set<String> toUpload, Set<String> toDelete) {}
 }

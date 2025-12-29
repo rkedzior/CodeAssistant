@@ -1,5 +1,6 @@
 package app.platform.adapters.git;
 
+import app.core.git.GitDiffEntry;
 import app.core.git.GitPort;
 import app.core.projectconfig.ProjectConfig;
 import app.core.projectconfig.ProjectConfigPort;
@@ -78,6 +79,28 @@ public class LocalGitAdapter implements GitPort {
     return runGitBytes(repoPath, DEFAULT_TIMEOUT, "show", commit.trim() + ":" + repoRelativePath);
   }
 
+  @Override
+  public List<GitDiffEntry> listChangedFiles(String fromCommit, String toCommit) {
+    if (fromCommit == null || fromCommit.isBlank()) {
+      throw new IllegalArgumentException("fromCommit must be non-blank.");
+    }
+    if (toCommit == null || toCommit.isBlank()) {
+      throw new IllegalArgumentException("toCommit must be non-blank.");
+    }
+
+    Path repoPath = resolveLocalRepoPath();
+    String stdout =
+        runGitText(
+            repoPath,
+            DEFAULT_TIMEOUT,
+            "diff",
+            "--name-status",
+            "-M",
+            "-z",
+            fromCommit.trim() + ".." + toCommit.trim());
+    return parseDiffNameStatus(stdout);
+  }
+
   private Path resolveLocalRepoPath() {
     ProjectConfig config =
         projectConfigPort
@@ -107,6 +130,66 @@ public class LocalGitAdapter implements GitPort {
         results.add(entry);
       }
     }
+    return results;
+  }
+
+  private static List<GitDiffEntry> parseDiffNameStatus(String stdout) {
+    if (stdout == null || stdout.isEmpty()) {
+      return List.of();
+    }
+
+    String[] tokens = stdout.split("\u0000", -1);
+    List<GitDiffEntry> results = new ArrayList<>();
+    int index = 0;
+    while (index < tokens.length) {
+      String status = tokens[index++];
+      if (status == null || status.isBlank()) {
+        continue;
+      }
+
+      char code = status.charAt(0);
+      if (code == 'R') {
+        if (index + 1 >= tokens.length) {
+          break;
+        }
+        String fromPath = tokens[index++];
+        String toPath = tokens[index++];
+        if (fromPath != null && !fromPath.isBlank() && toPath != null && !toPath.isBlank()) {
+          results.add(new GitDiffEntry(GitDiffEntry.Type.RENAMED, toPath, fromPath));
+        }
+        continue;
+      }
+
+      if (code == 'C') {
+        if (index + 1 >= tokens.length) {
+          break;
+        }
+        String fromPath = tokens[index++];
+        String toPath = tokens[index++];
+        if (toPath != null && !toPath.isBlank()) {
+          results.add(new GitDiffEntry(GitDiffEntry.Type.ADDED, toPath, fromPath));
+        }
+        continue;
+      }
+
+      if (index >= tokens.length) {
+        break;
+      }
+      String path = tokens[index++];
+      if (path == null || path.isBlank()) {
+        continue;
+      }
+
+      GitDiffEntry.Type type =
+          switch (code) {
+            case 'A' -> GitDiffEntry.Type.ADDED;
+            case 'M' -> GitDiffEntry.Type.MODIFIED;
+            case 'D' -> GitDiffEntry.Type.DELETED;
+            default -> GitDiffEntry.Type.MODIFIED;
+          };
+      results.add(new GitDiffEntry(type, path, null));
+    }
+
     return results;
   }
 

@@ -135,15 +135,23 @@ Observations / short memory:
   unavailable.
 
 - BL-1205 complete: analysis uses OpenAI Responses API with file_search when the
-  OpenAI client is configured; codeScope applies a type=code filter; local LLM
+  OpenAI client is configured; codeScope applies a type=code filter; local LLM  
   remains the fallback.
-- Tests: added OpenAIResponsesLlmAdapterTest; .\mvnw.cmd clean test passes
+- Tests: added OpenAIResponsesLlmAdapterTest; .\mvnw.cmd clean test passes      
   (62 tests).
 Observations / short memory:
-- LlmPort now accepts the codeScope flag; OpenAIResponsesLlmAdapter calls
+- LlmPort now accepts the codeScope flag; OpenAIResponsesLlmAdapter calls       
   Responses with file_search and enforces vectorStoreId presence.
-- LlmConfig chooses OpenAI LLM when OpenAIClient exists and otherwise keeps the
+- LlmConfig chooses OpenAI LLM when OpenAIClient exists and otherwise keeps the 
   local deterministic adapter for test/offline runs.
+
+- BL-1206 complete: update index now uses git diff to upload added/modified,
+  delete removed/renamed files; metadata stores path -> fileIds for cleanup.
+- Tests: updated UpdateIndexFlowTest to verify removed/renamed paths are cleaned
+  from the vector store; `.\mvnw.cmd clean test` passes (62 tests).
+Observations / short memory:
+- Update index deletes vector store files using stored file ids (fallback to
+  listFiles path attributes); reload removes stale paths from metadata.
 
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
