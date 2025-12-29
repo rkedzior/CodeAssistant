@@ -15,8 +15,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class VectorStoreProjectStateAdapter implements ProjectStatePort {
   private static final String METADATA_FILE_ID = "metadata.json";
-  private static final Map<String, String> METADATA_ATTRIBUTES =
+  private static final Map<String, String> LEGACY_METADATA_ATTRIBUTES =
       Map.of("type", "documentation", "subtype", "metadata");
+  private static final Map<String, String> METADATA_ATTRIBUTES =
+      Map.of("type", "documentation", "subtype", "metadata", "path", METADATA_FILE_ID);
 
   private final VectorStorePort vectorStorePort;
   private final ObjectMapper objectMapper;
@@ -33,11 +35,12 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
             () -> {
               ProjectMetadata metadata = ProjectMetadata.initial();
               try {
-                vectorStorePort.createFile(
+                String storedFileId =
+                    vectorStorePort.createFile(
                     METADATA_FILE_ID,
                     objectMapper.writeValueAsString(metadata).getBytes(StandardCharsets.UTF_8),
                     METADATA_ATTRIBUTES);
-                return new ProjectMetadataState(METADATA_FILE_ID, metadata, METADATA_ATTRIBUTES);
+                return new ProjectMetadataState(storedFileId, metadata, METADATA_ATTRIBUTES);
               } catch (IOException e) {
                 throw new IllegalStateException("Failed to create " + METADATA_FILE_ID, e);
               }
@@ -47,6 +50,9 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
   @Override
   public Optional<ProjectMetadataState> readMetadata() {
     Optional<String> fileId = vectorStorePort.findByAttributes(METADATA_ATTRIBUTES);
+    if (fileId.isEmpty()) {
+      fileId = vectorStorePort.findByAttributes(LEGACY_METADATA_ATTRIBUTES);
+    }
     if (fileId.isEmpty()) {
       return Optional.empty();
     }
@@ -72,11 +78,12 @@ public class VectorStoreProjectStateAdapter implements ProjectStatePort {
   @Override
   public ProjectMetadataState saveMetadata(ProjectMetadata metadata) {
     try {
-      vectorStorePort.createFile(
+      String storedFileId =
+          vectorStorePort.createFile(
           METADATA_FILE_ID,
           objectMapper.writeValueAsBytes(metadata),
           METADATA_ATTRIBUTES);
-      return new ProjectMetadataState(METADATA_FILE_ID, metadata, METADATA_ATTRIBUTES);
+      return new ProjectMetadataState(storedFileId, metadata, METADATA_ATTRIBUTES);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to write " + METADATA_FILE_ID, e);
     }

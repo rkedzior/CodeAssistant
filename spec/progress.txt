@@ -115,3 +115,7 @@ Observations / short memory:
 - Tests: added `OpenAIStatusApiTest`; `.\mvnw.cmd test` passes (includes OpenAI SDK dependency resolution/download).
 Observations / short memory:
 - Centralized OpenAI settings resolution uses precedence `OPENAI_API_KEY` → `openai.api.key` → `ProjectConfig.openaiApiKey`.
+- BL-1203 complete: OpenAI-backed `VectorStorePort` added (conditional on API key + `openaiVectorStoreId`), with upsert-by-`path` and byte downloads via `files().content`; metadata attributes now include `path=metadata.json` (with legacy fallback).
+- Tests: added `OpenAIVectorStoreAdapterTest` (Mockito, no network); `.\mvnw.cmd test` passes.
+Observations / short memory:
+- For OpenAI Vector Store, file ids are server-generated; adapters now return the stored file id from `createFile` and callers persist that when needed (observations + metadata state).

@@ -15,12 +15,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 
-@Component
-@Profile("!test & !e2etest")
 public class FileSystemVectorStoreAdapter implements VectorStorePort {
   private static final TypeReference<Map<String, String>> STRING_MAP =
       new TypeReference<>() {};
@@ -30,7 +25,7 @@ public class FileSystemVectorStoreAdapter implements VectorStorePort {
 
   public FileSystemVectorStoreAdapter(
       ObjectMapper objectMapper,
-      @Value("${codeassistant.vectorstore.path:.codeassistant/vectorstore}") String rootPath) {
+      String rootPath) {
     this.objectMapper = objectMapper;
     this.root = Path.of(rootPath);
   }
@@ -127,6 +122,20 @@ public class FileSystemVectorStoreAdapter implements VectorStorePort {
 
     results.sort(Comparator.comparing(VectorStoreFileSummary::fileId));
     return results;
+  }
+
+  @Override
+  public void deleteFile(String fileId) {
+    validateFileId(fileId);
+
+    Path contentPath = root.resolve(fileId);
+    Path attrsPath = root.resolve(fileId + ".attrs.json");
+    try {
+      Files.deleteIfExists(contentPath);
+      Files.deleteIfExists(attrsPath);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to delete vector store file " + fileId + " from " + root, e);
+    }
   }
 
   private Map<String, String> readAttributes(Path attrsPath) throws IOException {

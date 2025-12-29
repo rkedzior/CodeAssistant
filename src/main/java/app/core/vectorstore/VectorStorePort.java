@@ -12,4 +12,8 @@ public interface VectorStorePort {
   VectorStoreFile readFile(String fileId);
 
   List<VectorStoreFileSummary> listFiles();
+
+  default void deleteFile(String fileId) {
+    throw new UnsupportedOperationException("deleteFile not supported by " + getClass().getName());
+  }
 }

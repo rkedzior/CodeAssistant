@@ -16,6 +16,21 @@ Replace the local filesystem “vector store” with a real OpenAI Vector Store 
   - find metadata file by attributes (e.g. `type=documentation`, `subtype=metadata`, `path=metadata.json`)
   - read its content via OpenAI “files content” endpoint
 
+## Implementation plan (detailed)
+1. Adapter selection (non-test profiles)
+   - When OpenAI is configured and `openaiVectorStoreId` is present, use an OpenAI-backed `VectorStorePort`.
+   - Otherwise, keep using the local filesystem `VectorStorePort` implementation.
+2. OpenAI adapter behavior
+   - Upload bytes as OpenAI File (`client.files().create(...)`, purpose `ASSISTANTS`).
+   - Attach the uploaded file to the configured vector store (`client.beta().vectorStores().files().create(...)`).
+   - Persist `attributes` (including `path`, `type`, `subtype`) on the vector-store file so filtering remains possible.
+   - Implement upsert-by-`path` to prevent duplicates when reindexing (delete existing `path` then upload new).
+   - Add delete support (delete from vector store and delete underlying file).
+3. Metadata uniqueness
+   - Store metadata with `path=metadata.json` so it is uniquely discoverable and can be upserted safely.
+4. Tests
+   - Add Mockito unit tests for the OpenAI adapter (no network) verifying upload/attach/delete and content download.
+
 ## Implementation samples (based on `spec/classes_backend_ai.txt`)
 
 ### Upload file with metadata/attributes

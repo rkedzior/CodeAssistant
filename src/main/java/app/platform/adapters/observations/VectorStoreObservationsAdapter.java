@@ -35,21 +35,22 @@ public class VectorStoreObservationsAdapter implements ObservationsPort {
 
     long createdAt = System.currentTimeMillis();
     String random = UUID.randomUUID().toString().replace("-", "");
-    String fileId = "obs_" + createdAt + "_" + random;
+    String requestedFileId = "obs_" + createdAt + "_" + random;
 
     String normalizedText = text.trim();
-    vectorStorePort.createFile(
-        fileId,
-        normalizedText.getBytes(StandardCharsets.UTF_8),
-        Map.of(
-            "type",
-            OBSERVATION_TYPE,
-            "subtype",
-            subtype.key(),
-            "createdAt",
-            Long.toString(createdAt)));
+    String storedFileId =
+        vectorStorePort.createFile(
+            requestedFileId,
+            normalizedText.getBytes(StandardCharsets.UTF_8),
+            Map.of(
+                "type",
+                OBSERVATION_TYPE,
+                "subtype",
+                subtype.key(),
+                "createdAt",
+                Long.toString(createdAt)));
 
-    return new Observation(fileId, subtype, normalizedText, createdAt);
+    return new Observation(storedFileId, subtype, normalizedText, createdAt);
   }
 
   @Override
@@ -122,4 +123,3 @@ public class VectorStoreObservationsAdapter implements ObservationsPort {
     return 0L;
   }
 }
-

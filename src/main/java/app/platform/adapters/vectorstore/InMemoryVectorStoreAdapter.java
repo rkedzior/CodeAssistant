@@ -47,6 +47,11 @@ public class InMemoryVectorStoreAdapter implements VectorStorePort {
         .toList();
   }
 
+  @Override
+  public void deleteFile(String fileId) {
+    files.remove(fileId);
+  }
+
   private static boolean matchesRequired(
       Map<String, String> attributes, Map<String, String> requiredAttributes) {
     for (Map.Entry<String, String> entry : requiredAttributes.entrySet()) {
