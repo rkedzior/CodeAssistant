@@ -48,7 +48,7 @@ public record ProjectMetadata(
   }
 
   public ProjectMetadata withIndexingUpdate(
-      String lastIndexedCommit, Map<String, List<String>> pathToFileIds) {
+      String lastIndexedCommit, Map<String, List<String>> pathToFileIds) {      
     IndexingSettings updatedIndexing =
         new IndexingSettings(
             normalizeOptional(lastIndexedCommit),
@@ -62,6 +62,18 @@ public record ProjectMetadata(
         pathToFileIds == null ? Map.of() : Map.copyOf(pathToFileIds);
     return new ProjectMetadata(
         CURRENT_SCHEMA_VERSION, project, openai, updatedIndexing, rules, pathMap);
+  }
+
+  public ProjectMetadata withProjectConfig(ProjectConfig config) {
+    ProjectInfo updatedProject = defaultProjectInfo(config);
+    OpenAiSettings updatedOpenAi = defaultOpenAiSettings(config);
+    IndexingSettings updatedIndexing =
+        indexing == null ? defaultIndexingSettings(null) : indexing;
+    List<ClassificationRule> rules = classificationRulesOrDefault();
+    Map<String, List<String>> pathMap =
+        pathToOpenAiFileIds == null ? Map.of() : Map.copyOf(pathToOpenAiFileIds);
+    return new ProjectMetadata(
+        CURRENT_SCHEMA_VERSION, updatedProject, updatedOpenAi, updatedIndexing, rules, pathMap);
   }
 
   @JsonIgnore

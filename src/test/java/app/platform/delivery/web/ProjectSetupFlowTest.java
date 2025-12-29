@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,9 +55,24 @@ class ProjectSetupFlowTest {
     mockMvc
         .perform(get("/setup"))
         .andExpect(status().isOk())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))    
         .andExpect(content().string(containsString("gpt-test-model")))
         .andExpect(content().string(containsString("vs_test12345")));
+
+    mockMvc
+        .perform(get("/api/metadata"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.metadata.openai.vectorStoreId").value("vs_test12345"));
+  }
+
+  @Test
+  void setupPage_showsVectorStoreActions() throws Exception {
+    mockMvc
+        .perform(get("/setup"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        .andExpect(content().string(containsString("Create new vector store")))
+        .andExpect(content().string(containsString("Validate")));
   }
 
   @Test

@@ -3,6 +3,7 @@ package app.platform.delivery.web;
 import app.core.projectconfig.ProjectConfig;
 import app.core.projectconfig.ProjectConfigMode;
 import app.core.projectconfig.ProjectConfigPort;
+import app.core.projectstate.ProjectStatePort;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,11 +19,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ProjectSetupController {
   private final ProjectConfigPort projectConfigPort;
   private final ProjectSetupFormValidator projectSetupFormValidator;
+  private final ProjectStatePort projectStatePort;
 
   public ProjectSetupController(
-      ProjectConfigPort projectConfigPort, ProjectSetupFormValidator projectSetupFormValidator) {
+      ProjectConfigPort projectConfigPort,
+      ProjectSetupFormValidator projectSetupFormValidator,
+      ProjectStatePort projectStatePort) {
     this.projectConfigPort = projectConfigPort;
     this.projectSetupFormValidator = projectSetupFormValidator;
+    this.projectStatePort = projectStatePort;
   }
 
   @InitBinder("form")
@@ -47,7 +52,9 @@ public class ProjectSetupController {
       return "setup";
     }
 
-    projectConfigPort.save(toConfig(form));
+    ProjectConfig config = toConfig(form);
+    projectConfigPort.save(config);
+    updateMetadata(config);
     redirectAttributes.addFlashAttribute("successMessage", "Configuration saved.");
     return "redirect:/";
   }
@@ -99,5 +106,10 @@ public class ProjectSetupController {
     }
     String trimmed = value.trim();
     return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private void updateMetadata(ProjectConfig config) {
+    projectStatePort.saveMetadata(
+        projectStatePort.getOrCreateMetadata().metadata().withProjectConfig(config));
   }
 }

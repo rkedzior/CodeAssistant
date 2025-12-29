@@ -44,6 +44,31 @@
         gap: 0.75rem;
         align-items: center;
       }
+      .inline-actions {
+        margin-top: 0.5rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .subpanel {
+        margin-top: 0.5rem;
+        border: 1px dashed #ccc;
+        border-radius: 6px;
+        padding: 0.5rem;
+      }
+      .status {
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .status-success {
+        color: #0a6b2b;
+      }
+      .status-error {
+        color: #b00020;
+      }
+      .status-info {
+        color: #555;
+      }
       button {
         padding: 0.6rem 1rem;
         border: 0;
@@ -141,6 +166,18 @@
             th:field="*{openaiVectorStoreId}"
             placeholder="e.g. vs_abc123"
           />
+          <div class="inline-actions">
+            <button type="button" onclick="validateVectorStore()">Validate</button>
+            <button type="button" onclick="toggleVectorStoreCreate()">Create new vector store</button>
+          </div>
+          <div id="vectorStoreCreate" class="subpanel" style="display: none">
+            <label for="vectorStoreName">Vector store name</label>
+            <input id="vectorStoreName" type="text" placeholder="e.g. Code Assistant Store" />
+            <div class="inline-actions">
+              <button type="button" onclick="createVectorStore()">Create</button>
+            </div>
+          </div>
+          <div id="vectorStoreStatus" class="status"></div>
           <div class="help">
             When set, retrieval uses the Responses API File Search tool against this vector store.
           </div>
@@ -167,6 +204,91 @@
         document.getElementById("githubFields").style.display = isLocal ? "none" : "block";
       }
       toggleMode();
+
+      function toggleVectorStoreCreate() {
+        var panel = document.getElementById("vectorStoreCreate");
+        if (!panel) {
+          return;
+        }
+        panel.style.display = panel.style.display === "none" ? "block" : "none";
+      }
+
+      function setVectorStoreStatus(message, level) {
+        var status = document.getElementById("vectorStoreStatus");
+        if (!status) {
+          return;
+        }
+        status.textContent = message || "";
+        status.className = "status";
+        if (level) {
+          status.className += " status-" + level;
+        }
+      }
+
+      async function createVectorStore() {
+        var nameInput = document.getElementById("vectorStoreName");
+        var name = nameInput ? nameInput.value.trim() : "";
+        if (!name) {
+          setVectorStoreStatus("Enter a vector store name first.", "error");
+          return;
+        }
+        setVectorStoreStatus("Creating vector store...", "info");
+        try {
+          var response = await fetch("/api/openai/vectorstore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name })
+          });
+          var payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Failed to create vector store.");
+          }
+          var idInput = document.getElementById("openaiVectorStoreId");
+          if (idInput && payload.vectorStoreId) {
+            idInput.value = payload.vectorStoreId;
+          }
+          var message = "Created vector store " + (payload.vectorStoreId || "") + ".";
+          setVectorStoreStatus(message, "success");
+        } catch (err) {
+          setVectorStoreStatus(err.message || "Failed to create vector store.", "error");
+        }
+      }
+
+      async function validateVectorStore() {
+        var idInput = document.getElementById("openaiVectorStoreId");
+        var vectorStoreId = idInput ? idInput.value.trim() : "";
+        if (!vectorStoreId) {
+          setVectorStoreStatus("Enter a vector store id to validate.", "error");
+          return;
+        }
+        setVectorStoreStatus("Validating vector store...", "info");
+        try {
+          var response = await fetch("/api/openai/vectorstore/" + encodeURIComponent(vectorStoreId));
+          var payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Failed to validate vector store.");
+          }
+          if (!payload.exists) {
+            setVectorStoreStatus("Vector store not found or inaccessible.", "error");
+            return;
+          }
+          var details = [];
+          if (payload.name) {
+            details.push("name: " + payload.name);
+          }
+          if (payload.fileCount !== undefined && payload.fileCount !== null) {
+            details.push("files: " + payload.fileCount);
+          }
+          if (payload.createdAt) {
+            var createdDate = new Date(payload.createdAt * 1000);
+            details.push("created: " + createdDate.toLocaleString());
+          }
+          var suffix = details.length ? " (" + details.join(", ") + ")" : "";
+          setVectorStoreStatus("Vector store found" + suffix + ".", "success");
+        } catch (err) {
+          setVectorStoreStatus(err.message || "Failed to validate vector store.", "error");
+        }
+      }
     </script>
   </body>
 </html>

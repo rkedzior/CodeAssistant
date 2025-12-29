@@ -159,8 +159,20 @@ Observations / short memory:
 - Tests: updated metadata/indexing tests; `.\mvnw.cmd clean test` passes
   (62 tests).
 Observations / short memory:
-- Metadata creation now uses project config defaults (repo info + OpenAI model/
+- Metadata creation now uses project config defaults (repo info + OpenAI model/ 
   vector store id) and always includes default classification rules.
+
+2025-12-30
+- BL-1208 complete: /setup can create/validate OpenAI vector store (UI buttons +
+  name input + inline status); added POST /api/openai/vectorstore + GET
+  /api/openai/vectorstore/{id} (exists/name/fileCount/createdAt); setup save now
+  updates metadata openai.vectorStoreId via ProjectStatePort.
+- Tests: added OpenAIVectorStoreApiTest + extended ProjectSetupFlowTest to
+  validate metadata update and UI controls; `.\mvnw.cmd clean test` passes
+  (65 tests).
+Observations / short memory:
+- Vector store validation counts files via OpenAI list auto-pager; metadata
+  updates use ProjectMetadata.withProjectConfig to sync config defaults.
 
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
