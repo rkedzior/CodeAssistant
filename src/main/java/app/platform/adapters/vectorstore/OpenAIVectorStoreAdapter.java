@@ -4,27 +4,23 @@ import app.core.vectorstore.VectorStoreFile;
 import app.core.vectorstore.VectorStoreFileSummary;
 import app.core.vectorstore.VectorStorePort;
 import com.openai.client.OpenAIClient;
-import com.openai.core.JsonObject;
 import com.openai.core.JsonString;
 import com.openai.core.JsonValue;
 import com.openai.core.MultipartField;
 import com.openai.core.http.HttpResponse;
 import com.openai.errors.NotFoundException;
-import com.openai.models.BetaVectorStoreFileCreateParams;
-import com.openai.models.BetaVectorStoreFileDeleteParams;
-import com.openai.models.BetaVectorStoreFileListParams;
-import com.openai.models.BetaVectorStoreFileRetrieveParams;
-import com.openai.models.FileContentParams;
-import com.openai.models.FileCreateParams;
-import com.openai.models.FileDeleteParams;
-import com.openai.models.FileObject;
-import com.openai.models.FilePurpose;
+import com.openai.models.files.FileContentParams;
+import com.openai.models.files.FileCreateParams;
+import com.openai.models.files.FileDeleteParams;
+import com.openai.models.files.FileObject;
+import com.openai.models.files.FilePurpose;
+import com.openai.models.vectorstores.files.FileListParams;
+import com.openai.models.vectorstores.files.FileRetrieveParams;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,7 +44,7 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     Map<String, String> required = requiredAttributes == null ? Map.of() : requiredAttributes;
     return streamVectorStoreFiles()
         .filter(f -> matchesRequired(parseAttributes(f), required))
-        .map(com.openai.models.VectorStoreFile::id)
+        .map(com.openai.models.vectorstores.files.VectorStoreFile::id)
         .findFirst();
   }
 
@@ -87,12 +83,14 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
 
     String openAiFileId = uploaded.id();
     try {
-      BetaVectorStoreFileCreateParams.Builder attach =
-          BetaVectorStoreFileCreateParams.builder().vectorStoreId(vectorStoreId).fileId(openAiFileId);
+      com.openai.models.vectorstores.files.FileCreateParams.Builder attachParams =
+          com.openai.models.vectorstores.files.FileCreateParams.builder()
+              .vectorStoreId(vectorStoreId)
+              .fileId(openAiFileId);
       if (!safeAttributes.isEmpty()) {
-        attach.putAdditionalBodyProperty("attributes", toAttributesJson(safeAttributes));
+        attachParams.attributes(toVectorStoreFileAttributes(safeAttributes));
       }
-      client.beta().vectorStores().files().create(attach.build());
+      client.vectorStores().files().create(attachParams.build());
       return openAiFileId;
     } catch (RuntimeException e) {
       try {
@@ -110,15 +108,14 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     }
     String trimmedId = fileId.trim();
 
-    com.openai.models.VectorStoreFile vectorStoreFile;
+    com.openai.models.vectorstores.files.VectorStoreFile vectorStoreFile;
     try {
       vectorStoreFile =
           client
-              .beta()
               .vectorStores()
               .files()
               .retrieve(
-                  BetaVectorStoreFileRetrieveParams.builder()
+                  FileRetrieveParams.builder()
                       .vectorStoreId(vectorStoreId)
                       .fileId(trimmedId)
                       .build());
@@ -164,10 +161,13 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     String trimmedId = fileId.trim();
     try {
       client
-          .beta()
           .vectorStores()
           .files()
-          .delete(BetaVectorStoreFileDeleteParams.builder().vectorStoreId(vectorStoreId).fileId(trimmedId).build());
+          .delete(
+              com.openai.models.vectorstores.files.FileDeleteParams.builder()
+                  .vectorStoreId(vectorStoreId)
+                  .fileId(trimmedId)
+                  .build());
     } catch (NotFoundException ignored) {
       return;
     } catch (RuntimeException e) {
@@ -182,12 +182,11 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     }
   }
 
-  private Stream<com.openai.models.VectorStoreFile> streamVectorStoreFiles() {
+  private Stream<com.openai.models.vectorstores.files.VectorStoreFile> streamVectorStoreFiles() {
     return client
-        .beta()
         .vectorStores()
         .files()
-        .list(BetaVectorStoreFileListParams.builder().vectorStoreId(vectorStoreId).limit(100L).build())
+        .list(FileListParams.builder().vectorStoreId(vectorStoreId).limit(100L).build())
         .autoPager()
         .stream();
   }
@@ -195,7 +194,7 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
   private void deleteAllWithPath(String path) {
     streamVectorStoreFiles()
         .filter(f -> path.equals(parseAttributes(f).get("path")))
-        .map(com.openai.models.VectorStoreFile::id)
+        .map(com.openai.models.vectorstores.files.VectorStoreFile::id)
         .forEach(this::deleteFile);
   }
 
@@ -210,16 +209,21 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     return true;
   }
 
-  private static Map<String, String> parseAttributes(com.openai.models.VectorStoreFile file) {
+  private static Map<String, String> parseAttributes(
+      com.openai.models.vectorstores.files.VectorStoreFile file) {        
     if (file == null) return Map.of();
 
-    JsonValue attributesValue = file._additionalProperties().get("attributes");
-    if (!(attributesValue instanceof JsonObject jsonObject)) {
+    Optional<com.openai.models.vectorstores.files.VectorStoreFile.Attributes> maybeAttributes =
+        file.attributes();
+    if (maybeAttributes.isEmpty()) {
       return Map.of();
     }
 
+    Map<String, JsonValue> attributes = maybeAttributes.get()._additionalProperties();
+    if (attributes == null || attributes.isEmpty()) return Map.of();
+
     Map<String, String> result = new HashMap<>();
-    for (Map.Entry<String, JsonValue> entry : jsonObject.values().entrySet()) {
+    for (Map.Entry<String, JsonValue> entry : attributes.entrySet()) {
       String key = entry.getKey();
       JsonValue value = entry.getValue();
       if (key == null || key.isBlank() || value == null) continue;
@@ -239,18 +243,20 @@ public class OpenAIVectorStoreAdapter implements VectorStorePort {
     return result.isEmpty() ? Map.of() : Map.copyOf(result);
   }
 
-  private static JsonObject toAttributesJson(Map<String, String> attributes) {
+  private static com.openai.models.vectorstores.files.FileCreateParams.Attributes
+      toVectorStoreFileAttributes(Map<String, String> attributes) {
+    com.openai.models.vectorstores.files.FileCreateParams.Attributes.Builder builder =
+        com.openai.models.vectorstores.files.FileCreateParams.Attributes.builder();
     if (attributes == null || attributes.isEmpty()) {
-      return JsonObject.of(Map.of());
+      return builder.build();
     }
-    Map<String, JsonValue> jsonAttributes = new LinkedHashMap<>();
     for (Map.Entry<String, String> entry : attributes.entrySet()) {
       String key = normalizeOptional(entry.getKey());
       String value = entry.getValue();
       if (key == null || value == null) continue;
-      jsonAttributes.put(key, JsonString.of(value));
+      builder.putAdditionalProperty(key, JsonValue.from(value));
     }
-    return JsonObject.of(jsonAttributes);
+    return builder.build();
   }
 
   private static String normalizeOptional(String value) {

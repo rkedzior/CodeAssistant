@@ -14,6 +14,19 @@ This directly replaces the current `LocalSemanticSearchAdapter`.
 - Produce stable, parseable results:
   - Use Responses API in “JSON output” mode (schema) so the UI can render results deterministically
 
+## Implementation plan (detailed)
+- Upgrade OpenAI Java SDK to `com.openai:openai-java:4.13.0` to use the current Responses + `file_search` tool API surface.
+- Add `SemanticSearchConfig` that selects the OpenAI Responses-backed `SemanticSearchPort` only when:
+  - an `OpenAIClient` bean exists, and
+  - `openaiVectorStoreId` is configured;
+  otherwise, fall back to a local implementation.
+- Implement `OpenAIResponsesSemanticSearchAdapter`:
+  - Calls the OpenAI Responses API and attaches the `file_search` tool bound to the configured `openaiVectorStoreId`.
+  - Requests strict JSON output via a schema and maps the parsed payload into the existing semantic search response shape.
+  - Sanitizes model-provided strings (e.g., path/preview text) before returning them to callers.
+- Refactor `LocalSemanticSearchAdapter` to not be a Spring `@Component` and instantiate it from `SemanticSearchConfig` (so it is used only as an explicit fallback).
+- Add unit tests for `OpenAIResponsesSemanticSearchAdapter` covering JSON parsing, tool wiring, and sanitization/error-handling paths.
+
 ## Implementation samples (from `spec/classes_backend_ai.txt`)
 
 ### Responses call with optional File Search tool

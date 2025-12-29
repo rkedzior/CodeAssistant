@@ -23,7 +23,7 @@ public class OpenAIConfig {
     if (resolvedApiKey.apiKey() == null) {
       throw new IllegalStateException("OpenAI API key expected but not configured.");
     }
-    return new OpenAIOkHttpClient.Builder().apiKey(resolvedApiKey.apiKey()).build();
+    return OpenAIOkHttpClient.builder().apiKey(resolvedApiKey.apiKey()).build();
   }
 
   static class OpenAIConfiguredCondition implements Condition {

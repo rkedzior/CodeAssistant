@@ -119,3 +119,23 @@ Observations / short memory:
 - Tests: added `OpenAIVectorStoreAdapterTest` (Mockito, no network); `.\mvnw.cmd test` passes.
 Observations / short memory:
 - For OpenAI Vector Store, file ids are server-generated; adapters now return the stored file id from `createFile` and callers persist that when needed (observations + metadata state).
+
+- BL-1204 complete: semantic search uses OpenAI Responses API + file_search
+  when openaiVectorStoreId is configured; falls back to local semantic search
+  otherwise.
+- Tests: added OpenAIResponsesSemanticSearchAdapterTest; .\mvnw.cmd test passes (59 tests).
+Observations / short memory:
+- OpenAI SDK upgraded to com.openai:openai-java:4.13.0 (Responses + non-beta
+  vector stores); updated OpenAIConfig + OpenAIVectorStoreAdapter accordingly.
+- SemanticSearchConfig selects the Responses-backed SemanticSearchPort only
+  when OpenAI is configured and a vector store id is present.
+- FileProjectConfigAdapter is now wired via ProjectConfigAdapterConfig (no
+  component scan); config path resolved via Environment to avoid unresolved
+  placeholder errors; JacksonConfig provides ObjectMapper when auto-config is
+  unavailable.
+
+Blockers / issues (handoff):
+- `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.
+- Spec/reference mismatch: `spec/classes_backend_ai.txt` referenced by BL-1204+ stories is not present in this repo (likely from another project). Provide/copy it or adjust stories to remove that dependency.
+- Shell ergonomics: PowerShell lacks common unix helpers (e.g., `sed`, `head`) and does not support `&&`/`||`; use PowerShell equivalents.
+- File encoding: some spec/progress lines show mojibake (e.g., `â€”`, smart quotes). Be careful when editing to avoid introducing control characters; validate with `rg` and `git diff`.

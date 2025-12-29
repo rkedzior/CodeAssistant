@@ -15,9 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.springframework.stereotype.Component;
 
-@Component
 public class LocalSemanticSearchAdapter implements SemanticSearchPort {
   private static final int VECTOR_DIM = 512;
   private static final int MAX_K = 50;
