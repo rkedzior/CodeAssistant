@@ -44,7 +44,7 @@ class OpenAIStatusApiTest {
   }
 
   @Test
-  void getOpenAiStatus_whenProjectConfigHasKeyModelVectorStore_returnsConfiguredTrueAndDetails()
+  void getOpenAiStatus_whenProjectConfigHasKeyModelVectorStore_returnsConfiguredFalseAndDetails()
       throws Exception {
     projectConfigPort.save(
         new ProjectConfig(
@@ -54,8 +54,8 @@ class OpenAIStatusApiTest {
         .perform(get("/api/openai/status"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.configured").value(true))
-        .andExpect(jsonPath("$.apiKeySource").value("projectConfig"))
+        .andExpect(jsonPath("$.configured").value(false))
+        .andExpect(jsonPath("$.apiKeySource").value("missing"))
         .andExpect(jsonPath("$.model").value("gpt-test-model"))
         .andExpect(jsonPath("$.vectorStoreId").value("vs-test"));
   }
@@ -72,4 +72,3 @@ class OpenAIStatusApiTest {
         .andExpect(content().string(not(containsString("sk-test"))));
   }
 }
-

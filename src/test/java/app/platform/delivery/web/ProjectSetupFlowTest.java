@@ -39,7 +39,6 @@ class ProjectSetupFlowTest {
             post("/setup")
                 .param("mode", "LOCAL")
                 .param("localRepoPath", repoDir.toString())
-                .param("openaiApiKey", "sk-test")
                 .param("openaiModel", "gpt-test-model")
                 .param("openaiVectorStoreId", "vs_test12345"))
         .andExpect(status().is3xxRedirection())
@@ -85,7 +84,6 @@ class ProjectSetupFlowTest {
             post("/setup")
                 .param("mode", "LOCAL")
                 .param("localRepoPath", repoDir.toString())
-                .param("openaiApiKey", "sk-test")
                 .param("openaiVectorStoreId", "not-a-vs-id"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
@@ -106,8 +104,7 @@ class ProjectSetupFlowTest {
         .perform(
             post("/setup")
                 .param("mode", "LOCAL")
-                .param("localRepoPath", repoDir.toString())
-                .param("openaiApiKey", "sk-test"))
+                .param("localRepoPath", repoDir.toString()))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/"));
 
@@ -133,7 +130,6 @@ class ProjectSetupFlowTest {
             post("/setup")
                 .param("mode", "LOCAL")
                 .param("localRepoPath", repoDir.toString())
-                .param("openaiApiKey", "sk-test")
                 .param("openaiVectorStoreId", " "))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/"));
@@ -156,8 +152,7 @@ class ProjectSetupFlowTest {
             post("/setup")
                 .param("mode", "GITHUB")
                 .param("githubRepo", "octo-org/octo-repo")
-                .param("githubToken", "ghp_test")
-                .param("openaiApiKey", "sk-test"))
+                .param("githubToken", "ghp_test"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/"));
 
@@ -180,8 +175,7 @@ class ProjectSetupFlowTest {
             post("/setup")
                 .param("mode", "GITHUB")
                 .param("githubRepo", "invalid repo id")
-                .param("githubToken", "ghp_test")
-                .param("openaiApiKey", "sk-test"))
+                .param("githubToken", "ghp_test"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
         .andExpect(content().string(containsString("GitHub repository must match owner/name.")));

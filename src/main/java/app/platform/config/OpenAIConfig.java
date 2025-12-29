@@ -37,6 +37,10 @@ public class OpenAIConfig {
           OpenAISettingsResolver.normalizeOptional(context.getEnvironment().getProperty("openai.api.key"));
       if (propertyKey != null) return true;
 
+      boolean allowKeyInUi =
+          Boolean.parseBoolean(context.getEnvironment().getProperty("codeassistant.allowKeyInUi", "false"));
+      if (!allowKeyInUi) return false;
+
       if (context.getBeanFactory() == null) return false;
       try {
         ProjectConfigPort projectConfigPort = context.getBeanFactory().getBean(ProjectConfigPort.class);

@@ -167,12 +167,21 @@ Observations / short memory:
   name input + inline status); added POST /api/openai/vectorstore + GET
   /api/openai/vectorstore/{id} (exists/name/fileCount/createdAt); setup save now
   updates metadata openai.vectorStoreId via ProjectStatePort.
-- Tests: added OpenAIVectorStoreApiTest + extended ProjectSetupFlowTest to
-  validate metadata update and UI controls; `.\mvnw.cmd clean test` passes
+- Tests: added OpenAIVectorStoreApiTest + extended ProjectSetupFlowTest to      
+  validate metadata update and UI controls; `.\mvnw.cmd clean test` passes      
   (65 tests).
 Observations / short memory:
-- Vector store validation counts files via OpenAI list auto-pager; metadata
-  updates use ProjectMetadata.withProjectConfig to sync config defaults.
+- Vector store validation counts files via OpenAI list auto-pager; metadata     
+  updates use ProjectMetadata.withProjectConfig to sync config defaults.        
+
+- BL-1209 complete: OpenAI API key is resolved only from OPENAI_API_KEY or
+  openai.api.key by default; /setup shows a key status panel and does not persist
+  the key unless codeassistant.allowKeyInUi=true enables the dev-only field.
+- Tests: updated OpenAIStatusApiTest and setup flows; `.\mvnw.cmd clean test`
+  passes (65 tests).
+Observations / short memory:
+- OpenAIConfig/OpenAISettingsResolver ignore ProjectConfig.openaiApiKey unless
+  allowKeyInUi is true; ProjectSetupController clears persisted keys by default.
 
 Blockers / issues (handoff):
 - `codex_worker.codex` tool is unstable in this environment: frequent 900s timeouts and occasional `Unexpected response type` errors. This blocks reliable delegation and may require smaller prompts or manual edits.

@@ -1,13 +1,12 @@
 package app.platform.delivery.web;
 
 import app.core.projectconfig.ProjectConfigMode;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class ProjectSetupForm {
   @NotNull private ProjectConfigMode mode = ProjectConfigMode.LOCAL;
 
-  @NotBlank private String openaiApiKey;
+  private String openaiApiKey;
   private String openaiModel;
   private String openaiVectorStoreId;
 

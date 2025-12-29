@@ -4,7 +4,9 @@ import app.core.projectconfig.ProjectConfig;
 import app.core.projectconfig.ProjectConfigMode;
 import app.core.projectconfig.ProjectConfigPort;
 import app.core.projectstate.ProjectStatePort;
+import app.platform.openai.OpenAISettingsResolver;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -20,14 +22,20 @@ public class ProjectSetupController {
   private final ProjectConfigPort projectConfigPort;
   private final ProjectSetupFormValidator projectSetupFormValidator;
   private final ProjectStatePort projectStatePort;
+  private final OpenAISettingsResolver openAISettingsResolver;
+  private final boolean allowKeyInUi;
 
   public ProjectSetupController(
       ProjectConfigPort projectConfigPort,
       ProjectSetupFormValidator projectSetupFormValidator,
-      ProjectStatePort projectStatePort) {
+      ProjectStatePort projectStatePort,
+      OpenAISettingsResolver openAISettingsResolver,
+      @Value("${codeassistant.allowKeyInUi:false}") boolean allowKeyInUi) {
     this.projectConfigPort = projectConfigPort;
     this.projectSetupFormValidator = projectSetupFormValidator;
     this.projectStatePort = projectStatePort;
+    this.openAISettingsResolver = openAISettingsResolver;
+    this.allowKeyInUi = allowKeyInUi;
   }
 
   @InitBinder("form")
@@ -40,6 +48,11 @@ public class ProjectSetupController {
     if (!model.containsAttribute("form")) {
       model.addAttribute("form", toFormOrDefault());
     }
+    OpenAISettingsResolver.ResolvedApiKey apiKey = openAISettingsResolver.resolveApiKey();
+    model.addAttribute("openaiKeyConfigured", apiKey.apiKey() != null);
+    model.addAttribute(
+        "openaiKeySource", apiKey.source() == null ? null : apiKey.source().jsonValue());
+    model.addAttribute("allowKeyInUi", allowKeyInUi);
     return "setup";
   }
 
@@ -66,9 +79,8 @@ public class ProjectSetupController {
         .ifPresent(
             config -> {
               form.setMode(config.mode());
-              form.setOpenaiApiKey(config.openaiApiKey());
               form.setOpenaiModel(config.openaiModel());
-              form.setOpenaiVectorStoreId(config.openaiVectorStoreId());
+              form.setOpenaiVectorStoreId(config.openaiVectorStoreId());        
               form.setLocalRepoPath(config.localRepoPath());
               form.setGithubRepo(config.githubRepo());
               form.setGithubToken(config.githubToken());
@@ -76,13 +88,14 @@ public class ProjectSetupController {
     return form;
   }
 
-  private static ProjectConfig toConfig(ProjectSetupForm form) {
+  private ProjectConfig toConfig(ProjectSetupForm form) {
     String openaiModel = normalizeOptional(form.getOpenaiModel());
     String openaiVectorStoreId = normalizeOptional(form.getOpenaiVectorStoreId());
+    String openaiApiKey = resolveOpenaiApiKey(form);
     if (form.getMode() == ProjectConfigMode.LOCAL) {
       return new ProjectConfig(
           ProjectConfigMode.LOCAL,
-          form.getOpenaiApiKey(),
+          openaiApiKey,
           form.getLocalRepoPath(),
           null,
           null,
@@ -92,12 +105,27 @@ public class ProjectSetupController {
 
     return new ProjectConfig(
         ProjectConfigMode.GITHUB,
-        form.getOpenaiApiKey(),
+        openaiApiKey,
         null,
         form.getGithubRepo(),
         form.getGithubToken(),
         openaiModel,
         openaiVectorStoreId);
+  }
+
+  private String resolveOpenaiApiKey(ProjectSetupForm form) {
+    if (!allowKeyInUi) {
+      return null;
+    }
+    String fromForm = normalizeOptional(form.getOpenaiApiKey());
+    if (fromForm != null) {
+      return fromForm;
+    }
+    return projectConfigPort
+        .load()
+        .map(ProjectConfig::openaiApiKey)
+        .map(ProjectSetupController::normalizeOptional)
+        .orElse(null);
   }
 
   private static String normalizeOptional(String value) {

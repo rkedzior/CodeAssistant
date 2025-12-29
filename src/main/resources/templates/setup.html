@@ -95,7 +95,7 @@
       <h1>Project Setup</h1>
 
       <div class="notice">
-        <div>Choose how to identify your project and provide your OpenAI API key.</div>
+        <div>Choose how to identify your project and confirm OpenAI access.</div>
         <div class="help">Nothing is stored in a database; the configuration is kept locally.</div>
       </div>
 
@@ -142,9 +142,30 @@
         </div>
 
         <div class="row">
-          <label for="openaiApiKey">OpenAI API key</label>
-          <input id="openaiApiKey" type="password" th:field="*{openaiApiKey}" />
-          <div class="error" th:if="${#fields.hasErrors('openaiApiKey')}" th:errors="*{openaiApiKey}"></div>
+          <label>OpenAI API key</label>
+          <div class="help" th:if="${openaiKeyConfigured}">
+            OPENAI_API_KEY detected (<span th:text="${openaiKeySource}">source</span>).
+          </div>
+          <div class="help" th:unless="${openaiKeyConfigured}">
+            Missing. Set OPENAI_API_KEY or openai.api.key and restart.
+          </div>
+        </div>
+
+        <div class="row" th:if="${allowKeyInUi}">
+          <label>
+            <input id="allowKeyEntry" type="checkbox" onchange="toggleApiKeyEntry()" />
+            Allow dev-only key entry
+          </label>
+          <div id="apiKeyEntry" class="subpanel" style="display: none">
+            <label for="openaiApiKey">OpenAI API key (dev only)</label>
+            <input
+              id="openaiApiKey"
+              type="password"
+              th:field="*{openaiApiKey}"
+              disabled="disabled"
+            />
+            <div class="help">Stored in config.json only when dev entry is enabled.</div>
+          </div>
         </div>
 
         <div class="row">
@@ -204,6 +225,19 @@
         document.getElementById("githubFields").style.display = isLocal ? "none" : "block";
       }
       toggleMode();
+
+      function toggleApiKeyEntry() {
+        var checkbox = document.getElementById("allowKeyEntry");
+        var panel = document.getElementById("apiKeyEntry");
+        var input = document.getElementById("openaiApiKey");
+        if (!checkbox || !panel || !input) {
+          return;
+        }
+        var enabled = checkbox.checked;
+        panel.style.display = enabled ? "block" : "none";
+        input.disabled = !enabled;
+      }
+      toggleApiKeyEntry();
 
       function toggleVectorStoreCreate() {
         var panel = document.getElementById("vectorStoreCreate");

@@ -54,8 +54,7 @@ class ReloadIndexFlowTest {
         .perform(
             post("/setup")
                 .param("mode", "LOCAL")
-                .param("localRepoPath", repoDir.toString())
-                .param("openaiApiKey", "sk-test"))
+                .param("localRepoPath", repoDir.toString()))
         .andExpect(status().is3xxRedirection());
 
     mockMvc
